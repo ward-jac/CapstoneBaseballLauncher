@@ -2,12 +2,17 @@
 //#include <Arduino.h>
 #include "include/IMU.h"
 
-const int RX_PIN = 0; // fill these in
-const int TX_PIN = 1; // fill these in
-SoftwareSerial bluetoothSerial(RX_PIN, TX_PIN);
-
+// IMU pins
 const int IMU_ADDRESS = 55;
+const int RX_PIN = 0;
+const int TX_PIN = 1;
+// Button pins, rename
+const int BUTTON_1 = 2; 
+const int BUTTON_2 = 3;
+const int BUTTON_3 = 4;
+
 IMU _imu(IMU_ADDRESS);
+SoftwareSerial bluetoothSerial(RX_PIN, TX_PIN);
 
 boolean startUp;
 
@@ -27,13 +32,8 @@ void loop() {
         _imu.calibrate();
     }
 
-
-
     bluetoothSerial.write('P');
-    int floatLength = 5;
-    for(int i=0; i<floatLength; i++) {
-        bluetoothSerial.write(_imu.getPhi());
-    }
+    bluetoothSerial.write(_imu.getPhi());
     
     bluetoothSerial.write('T');
     bluetoothSerial.write(_imu.getTheta());
