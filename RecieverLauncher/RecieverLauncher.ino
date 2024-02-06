@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 #include "include/Launcher.h"
 
+// IMU tick rate (500ms) + Microphone 
 const int launcherTickRate = 500;
 
 // bluetooth
@@ -28,26 +29,30 @@ void setup() {
 }
 
 void loop() {
+
+  // reading values from IMU over bluetooth to write to actuator and servo
   if(bluetoothSerial.read() =='P') {
-    char curr = bluetoothSerial.read();
     char phiArray[7];
     char thetaArray[7];
+    char curr = bluetoothSerial.read();
     int idx = 0;
     while(curr!='T') {
       phiArray[idx] = curr;
       idx++;
       curr = bluetoothSerial.read();
     }
+    idx = 0;
     while(curr!='\n') {
       thetaArray[idx] = curr;
       idx++;
       curr = bluetoothSerial.read();
     }
+
+    Serial.println("phi: " + String(atof(phiArray)) + " / theta: " + String(atof(thetaArray)));
+  
+    _launcher.moveAct(atof(phiArray));
+    _launcher.moveServo(atof(thetaArray));
   }
-
-
-  _launcher.moveAct();
-  _launcher.moveServo();
 
   delay(launcherTickRate);
 }
