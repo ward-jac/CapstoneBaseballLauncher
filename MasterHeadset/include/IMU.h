@@ -5,8 +5,6 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
 
-#define BNO055_SAMPLERATE_DELAY_MS (1000)
-
 class IMU {
 public:
     IMU(int imuAddress);
@@ -14,6 +12,7 @@ public:
 	void calibrate();
     float getTheta();
     float getPhi();
+    int getTickRate();
 
 private:
 	int _imuAddress;

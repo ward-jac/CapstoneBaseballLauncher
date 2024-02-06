@@ -32,14 +32,23 @@ void loop() {
         _imu.calibrate();
     }
 
+    // writing phi over bluetooth
+    float phi = _imu.getPhi();
+    char bufferPhi[7] // (+/-) x x x . x x
+    dtostrf(phi, 3, 2, bufferPhi);
     bluetoothSerial.write('P');
-    bluetoothSerial.write(_imu.getPhi());
+    bluetoothSerial.write(bufferPhi);
     
+    // writing theta over bluetooth
+    float theta = _imu.getTheta();
+    char bufferTheta[7] // (+/-) x x x . x x
+    dtostrf(theta, 3, 2, bufferTheta);
     bluetoothSerial.write('T');
-    bluetoothSerial.write(_imu.getTheta());
+    bluetoothSerial.write(bufferTheta);
+    bluetoothSerial.write('\n');
 
-    Serial.println("phi: " + String(_imu.getPhi()) + " / theta: " + String(_imu.getTheta()));
+    Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
     
     startUp = false;
-    delay(BNO055_SAMPLERATE_DELAY_MS);
+    delay(_imu.getTickRate());
 }

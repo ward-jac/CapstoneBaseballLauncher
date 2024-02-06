@@ -5,6 +5,8 @@
 //#include <Arduino.h>
 #include "../include/IMU.h"
 
+#define BNO055_SAMPLERATE_DELAY_MS (500)
+
 IMU::IMU(int imuAddress) {
   _imuAddress = imuAddress;
   euler_shift_theta = 0.0;
@@ -54,4 +56,8 @@ float IMU::getPhi() {
   
   imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
   return euler.z() + (-1 * euler_shift_phi);
+}
+
+int IMU::getTickRate() {
+  return BNO055_SAMPLERATE_DELAY_MS;
 }
