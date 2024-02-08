@@ -17,13 +17,16 @@ Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
 // the servo motor
 Servo myServo;
 
-// the curent euler angles at the time of calibration
-float euler_shift_theta = 0.0;
-float euler_shift_phi = 0.0;
+// the curent angles at the time of calibration
+float shift_theta = 0.0;
+float shift_phi = 0.0;
 int updateCount = 0;
 
 // the maximum values of theta and phi
 int maxAngle = 30;
+
+// to deal with gimbal lock
+int dangerZone = 45;
 
 // Arduino pins for linear actuator
 int act_pin = A0;             // linear actuator potentiometer pin
@@ -82,6 +85,11 @@ void moveAct(float phi) {
   // obtain the analog potentiometer reading of the linear actuator
   actReading = analogRead(act_pin);
 
+  // don't move the machine if the values are incorrect
+  if (abs(phi) > dangerZone) {
+    phi = 0;
+  }
+
   // constrain phi within the max angles
   if (abs(phi) > maxAngle) {
     phi = sgn(phi) * maxAngle;
@@ -111,7 +119,10 @@ void moveServo(float theta) {
   int maxMicro = round(1472.0 + (45.0 * 10.0 / 3.0));  
   int minMicro = round(1472.0 - (45.0 * 10.0 / 3.0));
 
-  // obtain the analog potentiometer reading of the servo
+  // don't move the machine if the values are incorrect
+  if (abs(theta) > dangerZone) {
+    theta = 0;
+  }
 
   // constrain theta within the max angles
   if (abs(theta) > maxAngle) {
@@ -139,7 +150,7 @@ void moveServo(float theta) {
 // returns the shifted value of theta after calibration
 float getTheta(imu::Vector<3> euler) {
 
-  float shifted = euler.x() + (-1.0 * euler_shift_theta);
+  float shifted = euler.x() + (-1.0 * shift_theta);
 
   // to bound the angle from -180 to 180 degrees
   if (shifted > 180.0) {
@@ -155,11 +166,11 @@ float getTheta(imu::Vector<3> euler) {
 
 // returns the shifted value of phi after calibration
 float getPhi(imu::Vector<3> euler) {
-  return euler.z() + (-1.0 * euler_shift_phi);
+  return euler.z() + (-1.0 * shift_phi);
 }
 
 // updates the euler shift angles (theta and phi)
-void updateEulerShifts() {
+void updateShifts() {
   
   // calibrate and obtain the euler angles from the IMU
   uint8_t system, gyro, accel, mg = 0;
@@ -167,10 +178,10 @@ void updateEulerShifts() {
   imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
 
   // euler x = theta
-  euler_shift_theta = euler.x();
+  shift_theta = euler.x();
 
   // euler z = phi
-  euler_shift_phi = euler.z();
+  shift_phi = euler.z();
 }
 
 void setup(void) 
@@ -191,12 +202,14 @@ void loop(void)
 {  
   // zero the IMU at the very beginning of the program
   if (updateCount < 1) {
-    updateEulerShifts();
+    updateShifts();
     Serial.println("Calibrated\n");
     updateCount++;
   }
 
+  // obtain the current euler angles of the imu
   imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
+
   Serial.print("Theta: ");
   Serial.println(getTheta(euler));
   Serial.print("Phi: ");
