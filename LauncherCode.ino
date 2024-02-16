@@ -14,8 +14,11 @@
 #define BNO055_SAMPLERATE_DELAY_MS (500)
 Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
 
-// the servo motor
+// for the servo motor
 Servo myServo;
+int servoPin = 5;
+int servoZero = 90;
+int prevServoPos = servoZero;
 
 // the curent angles at the time of calibration
 float shift_theta = 0.0;
@@ -26,7 +29,7 @@ int updateCount = 0;
 int maxAngle = 30;
 
 // to deal with gimbal lock
-int dangerZone = 45;
+int dangerZone = 60;
 
 // Arduino pins for linear actuator
 int act_pin = A0;             // linear actuator potentiometer pin
@@ -49,7 +52,7 @@ int microPos;                 // the servo position in microseconds that it is m
 // to keep track of the current firing mode
 // 0 = fine
 // 1 = coarse
-int sensitivityMode = 0;
+int sensitivityMode = 1;
 
 // the minimum angle needed to activate
 int sensitivity[] = {7, 15};
@@ -115,10 +118,6 @@ void moveAct(float phi) {
 // moves the servo accordingly if the horizontal (left and right) IMU angle surpasses the minimum angle
 void moveServo(float theta) {
 
-  // conversion from deg to microsec with 0 deg = 1472 microsec
-  int maxMicro = round(1472.0 + (45.0 * 10.0 / 3.0));  
-  int minMicro = round(1472.0 - (45.0 * 10.0 / 3.0));
-
   // don't move the machine if the values are incorrect
   if (abs(theta) > dangerZone) {
     theta = 0;
@@ -132,18 +131,17 @@ void moveServo(float theta) {
   // the difference between theta and the activation angle for a given sensitivity
   float diff = abs(theta) - sensitivity[sensitivityMode];
 
-  // determine the servo rotation based on theta
-  float servoSpeed = mapFloat(abs(theta), 0, maxAngle, 0, 1); 
+  // before moving, obtain the last written position of the servo
+  prevServoPos = myServo.read();
   
-  // rotates the servo if the theta surpasses the minimum angle
-  if (diff > 0) { 
-    // the servo position (in degrees) is mapped to microseconds to gain more resolution
-    microPos = map(theta, -1 * maxAngle, maxAngle, minMicro, maxMicro); 
-    myServo.writeMicroseconds(microPos * servoSpeed);
-  }
-  // does not move the servo if the minimum angle isn't surpassed
-  else { 
-    myServo.writeMicroseconds(0);
+  // rotates the servo if theta surpasses the minimum angle
+  if (diff > 0) {
+    if (theta > 0) {
+      myServo.write(prevServoPos - 12);
+    }
+    else if (theta < 0) {
+      myServo.write(prevServoPos + 12);
+    }
   }
 }
 
@@ -193,6 +191,10 @@ void setup(void)
   delay(1000);
   int8_t temp = myIMU.getTemp();
   myIMU.setExtCrystalUse(true);
+
+  // zero the servo and attach it to the Arduino
+  myServo.write(servoZero);
+  myServo.attach(servoPin);
   
   // 1 second delay
   delay(1000);
