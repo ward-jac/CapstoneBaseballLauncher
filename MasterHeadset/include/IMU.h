@@ -1,9 +1,9 @@
 #ifndef IMU_h
 #define IMU_h
 #include <Wire.h>
+#include <Adafruit_BNO055.h>
 #include <utility/imumaths.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
 
 class IMU {
 public:
@@ -12,7 +12,6 @@ public:
 	void calibrate();
     float getTheta();
     float getPhi();
-    int getTickRate();
 
 private:
 	int _imuAddress;

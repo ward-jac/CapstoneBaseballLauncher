@@ -5,7 +5,7 @@
 class Audio {
 public:
     Audio(int rx_pin, int tx_pin);
-    void play(char s);
+    void play(String s);
 
 private:
     int _pin;

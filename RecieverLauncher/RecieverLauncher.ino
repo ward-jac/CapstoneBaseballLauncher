@@ -1,22 +1,22 @@
 #include <SoftwareSerial.h>
 #include "include/Launcher.h"
 
-// IMU tick rate (500ms) + Microphone 
-const int launcherTickRate = 500;
+const int launcherProcessingSpeed = 500;
 
 // bluetooth
-const int RX_PIN;
-const int TX_PIN;
+const int RX_PIN = 0;
+const int TX_PIN = 1;
 
-// launcher pins
-const int ACTUATOR_PIN;
-const int SERVO_PIN;
+// Arduino pins for linear actuator
+const int act_pin = 54;             // linear actuator potentiometer pin
+const int act_RPWM = 10;            // linear actutator RPWM connection
+const int act_LPWM = 11;            // linear actuator LWPM connection
 
-// peripherals
-const int FIRE_BUTTON_PIN;
+const int SPEEDUP_PIN = 123;
+const int SPEEDDOWN_PIN = 123;
 
 SoftwareSerial bluetoothSerial(RX_PIN, TX_PIN);
-Launcher _launcher(ACTUATOR_PIN, SERVO_PIN);
+Launcher _launcher(act_pin, act_RPWM, act_LPWM);
 
 char speechRecognition() {
 }
@@ -28,31 +28,74 @@ void setup() {
     bluetoothSerial.begin(9600);
 }
 
+void clearBluetoothBuffer() {
+  while(bluetoothSerial.available()) {
+    char clear = bluetoothSerial.read();
+  }
+}
+
+void addSpeed(int speed)
+{
+    delay(launcherProcessingSpeed);
+
+    if (speed < 0)
+    {
+        addSpeed(speed + 1);
+        digitalWrite(SPEEDDOWN_PIN, HIGH);
+        digitalWrite(SPEEDDOWN_PIN, LOW);
+    }
+    else if (speed > 0)
+    {
+        addSpeed(speed - 1);
+        digitalWrite(SPEEDUP_PIN, HIGH);
+        digitalWrite(SPEEDUP_PIN, LOW);
+    }
+
+    clearBluetoothBuffer();
+}
+
+float readBytes() {
+  if (bluetoothSerial.available() >= sizeof(float))
+  { // Check if there are enough bytes available
+    // Read the incoming bytes into a byte array
+    byte byteArray[sizeof(float)];
+    bluetoothSerial.readBytes(byteArray, sizeof(byteArray));
+
+    // Convert the byte array back to an integer
+    float receivedData;
+    memcpy(&receivedData, byteArray, sizeof(receivedData));
+
+    return receivedData;
+  }
+}
+
 void loop() {
+  // read PHI THETA values from Master IMU to write to Reciever actuator and servo
+  if(bluetoothSerial.read() =='P') 
+  {
+    float phi = readBytes();
+    float theta = readBytes();
 
-  // reading values from IMU over bluetooth to write to actuator and servo
-  if(bluetoothSerial.read() =='P') {
-    char phiArray[7];
-    char thetaArray[7];
-    char curr = bluetoothSerial.read();
-    int idx = 0;
-    while(curr!='T') {
-      phiArray[idx] = curr;
-      idx++;
-      curr = bluetoothSerial.read();
-    }
-    idx = 0;
-    while(curr!='\n') {
-      thetaArray[idx] = curr;
-      idx++;
-      curr = bluetoothSerial.read();
-    }
-
-    Serial.println("phi: " + String(atof(phiArray)) + " / theta: " + String(atof(thetaArray)));
+    Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
   
-    _launcher.moveAct(atof(phiArray));
-    _launcher.moveServo(atof(thetaArray));
+    _launcher.moveAct(phi);
+    _launcher.moveServo(theta);
   }
 
-  delay(launcherTickRate);
+  else if(bluetoothSerial.read() =='S')
+  {
+    float num = readBytes();
+    Serial.println("Recieved: " + String(num));
+    addSpeed(num);
+  }
+
+  else if(bluetoothSerial.read() =='H')
+  {
+    _launcher.setSensitivity('H');
+  }
+
+  else if(bluetoothSerial.read() =='L')
+  {
+    _launcher.setSensitivity('L');
+  }
 }

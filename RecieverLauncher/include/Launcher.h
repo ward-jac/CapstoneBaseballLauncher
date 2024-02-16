@@ -3,15 +3,17 @@
 
 class Launcher {
     public:
-        Launcher(int actuatorPin, int servoPin);
+        Launcher(int actPIN, int actRPWM, int actLPWM);
         void moveAct(float phi);
         void moveServo(float theta);
+        void setSensitivity(char c);
 
     private:
         void driveActuator(int Direction, int Speed);
         float mapFloat(long x, long in_min, long in_max, long out_min, long out_max);
-        int _actuatorPin;
-        int _servoPin;
+        int act_pin;
+        int act_RPWM;
+        int act_LPWM;
 
         // Actuator state variables
         int actReading;               // the value read by the linear actuator potentiometer

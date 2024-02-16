@@ -1,5 +1,7 @@
-#include "../include/Launcher.h"
 #include <Servo.h>
+#include <Arduino.h>
+#include "../include/Launcher.h"
+
 
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0));
 Servo myServo;
@@ -7,14 +9,10 @@ Servo myServo;
 // the maximum values of theta and phi
 const int maxAngle = 30;
 
-// Arduino pins for linear actuator
-const int act_pin = A0;             // linear actuator potentiometer pin
-const int act_RPWM = 10;            // linear actutator RPWM connection
-const int act_LPWM = 11;            // linear actuator LWPM connection
-
-Launcher::Launcher(int actuatorPin, int servoPin) {
-    _actuatorPin = actuatorPin;
-    _servoPin = servoPin;
+Launcher::Launcher(int actPIN, int actRPWM, int actLPWM) {
+    act_pin = actPIN;
+    act_RPWM = actRPWM;
+    act_LPWM = actLPWM;
 
     actReading = 0;
     strokeLength = 8.0;
@@ -22,6 +20,11 @@ Launcher::Launcher(int actuatorPin, int servoPin) {
     sensitivityMode = 0;
     sensitivity[0] = 7;  //fine
     sensitivity[1] = 15; //course
+}
+
+// maps input to output positions
+float Launcher::mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
+  return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
 }
 
 // moves the linear actuator in a given direction at a given speed
@@ -107,5 +110,16 @@ void Launcher::moveServo(float theta) {
   // does not move the servo if the minimum angle isn't surpassed
   else { 
     myServo.writeMicroseconds(0);
+  }
+}
+
+void Launcher::setSensitivity(char c) {
+  if(c == 'H')
+  {
+    sensitivityMode = 1;
+  }
+  else if(c == 'L')
+  {
+    sensitivityMode = 0;
   }
 }

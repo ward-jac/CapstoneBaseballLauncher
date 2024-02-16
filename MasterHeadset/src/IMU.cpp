@@ -2,7 +2,7 @@
 #include <utility/imumaths.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
-//#include <Arduino.h>
+#include <Arduino.h>
 #include "../include/IMU.h"
 
 #define BNO055_SAMPLERATE_DELAY_MS (500)
@@ -56,8 +56,4 @@ float IMU::getPhi() {
   
   imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
   return euler.z() + (-1 * euler_shift_phi);
-}
-
-int IMU::getTickRate() {
-  return BNO055_SAMPLERATE_DELAY_MS;
 }
