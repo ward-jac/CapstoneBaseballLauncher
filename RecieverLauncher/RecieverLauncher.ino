@@ -1,11 +1,7 @@
-#include <SoftwareSerial.h>
+#include <AltSoftSerial.h>
 #include "include/Launcher.h"
 
 const int launcherProcessingSpeed = 500;
-
-// bluetooth
-const int RX_PIN = 0;
-const int TX_PIN = 1;
 
 // Arduino pins for linear actuator
 const int act_pin = 54;             // linear actuator potentiometer pin
@@ -15,7 +11,7 @@ const int act_LPWM = 11;            // linear actuator LWPM connection
 const int SPEEDUP_PIN = 123;
 const int SPEEDDOWN_PIN = 123;
 
-SoftwareSerial bluetoothSerial(RX_PIN, TX_PIN);
+AltSoftSerial bluetoothSerial;
 Launcher _launcher(act_pin, act_RPWM, act_LPWM);
 
 char speechRecognition() {

@@ -1,10 +1,10 @@
-#include <Servo.h>
+#include <ServoTimer2.h>
 #include <Arduino.h>
 #include "../include/Launcher.h"
 
 
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0));
-Servo myServo;
+ServoTimer2 myServo;
 
 // the maximum values of theta and phi
 const int maxAngle = 30;
