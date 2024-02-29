@@ -64,8 +64,11 @@ void loop() {
   // read PHI THETA values from Master IMU to write to Reciever actuator and servo
   if(bluetoothSerial.read() =='P') 
   {
-    float phi = readBytes();
-    float theta = readBytes();
+    //float phi = readBytes();
+    //float theta = readBytes();
+    String str = receiver.readString();
+    float phi = str.substring(0, str.indexOf(" ")).toFloat();
+    float theta = str.substring(str.indexOf(" "), str.length()).toFloat();
 
     Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
   

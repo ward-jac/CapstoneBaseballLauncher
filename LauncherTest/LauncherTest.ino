@@ -152,7 +152,7 @@ float stringToTheta(String str) {
   return str.substring(0, str.indexOf(" ")).toFloat();
 }
 
-// obtain the first number in the string (theta)
+// obtain the first number in the string (phi)
 float stringToPhi(String str) {
   return str.substring(str.indexOf(" "), str.length()).toFloat();
 }
