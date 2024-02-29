@@ -3,16 +3,11 @@
 
 const int launcherProcessingSpeed = 500;
 
-// Arduino pins for linear actuator
-const int act_pin = 54;             // linear actuator potentiometer pin
-const int act_RPWM = 10;            // linear actutator RPWM connection
-const int act_LPWM = 11;            // linear actuator LWPM connection
-
 const int SPEEDUP_PIN = 123;
 const int SPEEDDOWN_PIN = 123;
 
 AltSoftSerial bluetoothSerial;
-Launcher _launcher(act_pin, act_RPWM, act_LPWM);
+Launcher _launcher;
 
 char speechRecognition() {
 }

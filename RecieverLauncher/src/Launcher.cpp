@@ -1,5 +1,5 @@
-#include <ServoTimer2.h>
 #include <Arduino.h>
+#include <ServoTimer2.h>
 #include "../include/Launcher.h"
 
 
@@ -8,12 +8,15 @@ ServoTimer2 myServo;
 
 // the maximum values of theta and phi
 const int maxAngle = 30;
+const int servoPin = 5;
+const int servoZero = 90;
 
-Launcher::Launcher(int actPIN, int actRPWM, int actLPWM) {
-    act_pin = actPIN;
-    act_RPWM = actRPWM;
-    act_LPWM = actLPWM;
+// Arduino pins for linear actuator
+const int act_pin = A0;             // linear actuator potentiometer pin 54
+const int act_RPWM = 10;            // linear actutator RPWM connection
+const int act_LPWM = 11;            // linear actuator LWPM connection
 
+Launcher::Launcher() {
     actReading = 0;
     strokeLength = 8.0;
 
@@ -105,11 +108,11 @@ void Launcher::moveServo(float theta) {
   if (diff > 0) { 
     // the servo position (in degrees) is mapped to microseconds to gain more resolution
     microPos = map(theta, -1 * maxAngle, maxAngle, minMicro, maxMicro); 
-    myServo.writeMicroseconds(microPos * servoSpeed);
+    myServo.write(microPos * servoSpeed);
   }
   // does not move the servo if the minimum angle isn't surpassed
   else { 
-    myServo.writeMicroseconds(0);
+    myServo.write(0);
   }
 }
 

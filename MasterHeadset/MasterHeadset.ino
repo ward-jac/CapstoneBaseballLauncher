@@ -1,4 +1,4 @@
-#include <SoftwareSerial.h>
+#include <AltSoftSerial.h>
 #include <avr/io.h>
 #include <stdlib.h>
 // #include <Arduino.h>
@@ -7,10 +7,8 @@
 
 // IMU
 const int IMU_ADDRESS = 55;
-const int IMU_RX_PIN = 123;
-const int IMU_TX_PIN = 123;
 IMU _imu(IMU_ADDRESS);
-SoftwareSerial bluetoothSerial(IMU_RX_PIN, IMU_TX_PIN);
+AltSoftSerial bluetoothSerial;
 
 // Audio
 const int SP_RX_PIN = 123;

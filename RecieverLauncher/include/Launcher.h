@@ -3,7 +3,7 @@
 
 class Launcher {
     public:
-        Launcher(int actPIN, int actRPWM, int actLPWM);
+        Launcher();
         void moveAct(float phi);
         void moveServo(float theta);
         void setSensitivity(char c);
