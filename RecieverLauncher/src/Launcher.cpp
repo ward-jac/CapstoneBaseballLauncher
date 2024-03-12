@@ -9,20 +9,19 @@ ServoTimer2 myServo;
 // the maximum values of theta and phi
 const int maxAngle = 30;
 const int servoPin = 5;
-const int servoZero = 90;
+int servoPos = 0;
 
 // Arduino pins for linear actuator
 const int act_pin = A0;             // linear actuator potentiometer pin 54
 const int act_RPWM = 10;            // linear actutator RPWM connection
 const int act_LPWM = 11;            // linear actuator LWPM connection
 
-Launcher::Launcher() {
-    actReading = 0;
-    strokeLength = 8.0;
+const int actReading = 0;
+const int strokeLength = 8.0;
 
-    sensitivityMode = 0;
-    sensitivity[0] = 7;  //fine
-    sensitivity[1] = 15; //course
+Launcher::Launcher() {
+  myServo.write(servoPos);
+  myServo.attach(servoPin);
 }
 
 // maps input to output positions
@@ -83,6 +82,7 @@ void Launcher::moveAct(float phi) {
     }
 }
 
+/*
 // moves the servo accordingly if the horizontal (left and right) IMU angle surpasses the minimum angle
 void Launcher::moveServo(float theta) {
 
@@ -114,6 +114,50 @@ void Launcher::moveServo(float theta) {
   else { 
     myServo.write(0);
   }
+}
+*/
+
+void Launcher::moveServo(float theta) {
+  int sensLevel1 = 2;
+  int sensLevel2 = 5;
+  int sensLevel3 = 10;
+  int sensLevel4 = 20;
+
+  if(servoPos<45 && servoPos>-45) {
+    if(theta>40) {
+      servoPos = servoPos + sensLevel4;
+      myServo.write(servoPos);
+    }
+    else if(theta>30) {
+      servoPos = servoPos + sensLevel3;
+      myServo.write(servoPos);
+    }
+    else if(theta>20) {
+      servoPos = servoPos + sensLevel2;
+      myServo.write(servoPos);
+    }
+    else if(theta>10) {
+      servoPos = servoPos + sensLevel1;
+      myServo.write(servoPos);
+    }
+    else if(theta<-10) {
+      servoPos = servoPos - sensLevel1;
+      myServo.write(servoPos);
+    }
+    else if(theta<-20) {
+      servoPos = servoPos - sensLevel2;
+      myServo.write(servoPos);
+    }
+    else if(theta<-30) {
+      servoPos = servoPos - sensLevel3;
+      myServo.write(servoPos);
+    }
+    else if(theta<-40) {
+      servoPos = servoPos - sensLevel4;
+      myServo.write(servoPos);
+    }
+  }
+  delay(80);
 }
 
 void Launcher::setSensitivity(char c) {

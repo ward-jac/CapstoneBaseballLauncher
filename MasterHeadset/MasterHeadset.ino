@@ -165,13 +165,15 @@ void loop()
     // Do not send IMU data if lock is enabled
     if(!isLocked)
     {   
-        phi = _imu.getPhi();
-        theta = _imu.getTheta();
+        /*
+        float phi = _imu.getPhi();
+        float theta = _imu.getTheta();
         bluetoothSerial.print(phi);
         bluetoothSerial.print(" ");
         bluetoothSerial.println(theta);
         Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-        /*
+        */
+       
         float phi = _imu.getPhi();
         bluetoothSerial.write('P');
         sendFloat(phi);
@@ -180,7 +182,6 @@ void loop()
         sendFloat(theta);
 
         Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-        */
 
         /*
         // writing phi over bluetooth

@@ -12,13 +12,6 @@ Launcher _launcher;
 char speechRecognition() {
 }
 
-void setup() {
-    // Open serial communications and wait for port to open:
-    Serial.begin(19200);
-    // set the data rate for the SoftwareSerial port
-    bluetoothSerial.begin(9600);
-}
-
 void clearBluetoothBuffer() {
   while(bluetoothSerial.available()) {
     char clear = bluetoothSerial.read();
@@ -45,12 +38,15 @@ void addSpeed(int speed)
     clearBluetoothBuffer();
 }
 
-float readBytes() {
+float readB() {
+  Serial.println("here");
   if (bluetoothSerial.available() >= sizeof(float))
   { // Check if there are enough bytes available
     // Read the incoming bytes into a byte array
     byte byteArray[sizeof(float)];
     bluetoothSerial.readBytes(byteArray, sizeof(byteArray));
+    
+    //Serial.println(String(byteArray[1]));
 
     // Convert the byte array back to an integer
     float receivedData;
@@ -60,15 +56,28 @@ float readBytes() {
   }
 }
 
+
+void setup() {
+    // Open serial communications and wait for port to open:
+    Serial.begin(19200);
+    // set the data rate for the SoftwareSerial port
+    bluetoothSerial.begin(9600);
+}
+
 void loop() {
   // read PHI THETA values from Master IMU to write to Reciever actuator and servo
+  //Serial.println(String(bluetoothSerial.read()));
   if(bluetoothSerial.read() =='P') 
-  {
-    //float phi = readBytes();
-    //float theta = readBytes();
-    String str = receiver.readString();
+  { 
+    //Serial.println("Recieved P");
+    float phi = readB();
+    float theta = readB();
+
+    /*
+    String str = bluetoothSerial.readString();
     float phi = str.substring(0, str.indexOf(" ")).toFloat();
     float theta = str.substring(str.indexOf(" "), str.length()).toFloat();
+    */
 
     Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
   
@@ -78,7 +87,7 @@ void loop() {
 
   else if(bluetoothSerial.read() =='S')
   {
-    float num = readBytes();
+    float num = readB();
     Serial.println("Recieved: " + String(num));
     addSpeed(num);
   }
