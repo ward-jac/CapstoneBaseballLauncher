@@ -12,9 +12,9 @@
 Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
 
 //  Pins for BT
-//  BT VCC to Arduino 5V out. 
+//  BT VCC to Arduino 5V out.
 //  BT GND to GND
-//  Arduino 48 (Mega) RX -> BT TX no need voltage divider 
+//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
 //  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
 
 // https://www.pjrc.com/teensy/td_libs_AltSoftSerial.html
@@ -22,7 +22,7 @@ Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
 AltSoftSerial sender;
 
 char c = ' ';
-boolean NL = true; 
+boolean NL = true;
 
 // the curent angles at the time of calibration
 float shift_theta = 0.0;
@@ -41,7 +41,7 @@ int dangerZone = 60;
 int sensitivityMode = 1;
 
 // the minimum angle needed to activate
-int sensitivity[] = {7, 15};
+int sensitivity[] = { 7, 15 };
 
 // maps input to output positions
 float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
@@ -56,11 +56,9 @@ float getTheta(imu::Vector<3> euler) {
   // to bound the angle from -180 to 180 degrees
   if (shifted > 180.0) {
     return shifted - 360.0;
-  }
-  else if (shifted < -180.0) {
+  } else if (shifted < -180.0) {
     return shifted + 360.0;
-  }
-  else {
+  } else {
     return shifted;
   }
 }
@@ -72,7 +70,7 @@ float getPhi(imu::Vector<3> euler) {
 
 // updates the euler shift angles (theta and phi)
 void updateShifts() {
-  
+
   // calibrate and obtain the euler angles from the IMU
   uint8_t system, gyro, accel, mg = 0;
   myIMU.getCalibration(&system, &gyro, &accel, &mg);
@@ -85,29 +83,29 @@ void updateShifts() {
   shift_phi = euler.z();
 }
 
-void setup(void) 
-{
+void setup(void) {
   // start serial monitor communication at 9600 baud rate
   Serial.begin(9600);
-  Serial.print("Sketch:   ");   Serial.println(__FILE__);
-  Serial.print("Uploaded: ");   Serial.println(__DATE__);
+  Serial.print("Sketch:   ");
+  Serial.println(__FILE__);
+  Serial.print("Uploaded: ");
+  Serial.println(__DATE__);
   Serial.println(" ");
- 
+
   // start sender BT at 9600 baud rate
-  sender.begin(9600);  
+  sender.begin(9600);
   Serial.println("Sender started at 9600");
-    
+
   myIMU.begin();
   delay(1000);
   int8_t temp = myIMU.getTemp();
   myIMU.setExtCrystalUse(true);
-  
+
   // 1 second delay
   delay(1000);
 }
 
-void loop(void) 
-{  
+void loop(void) {
   // zero the IMU at the very beginning of the program
   if (updateCount < 1) {
     updateShifts();

@@ -1,3 +1,16 @@
+// required for IMU calculations
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+
+// for sign operations
+#define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
+
+// the sample rate delay and IMU
+#define BNO055_SAMPLERATE_DELAY_MS (500)
+Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
+
 //  Pins
 //  BT VCC to Arduino 5V out.
 //  BT GND to GND
