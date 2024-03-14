@@ -1,3 +1,16 @@
+// required for IMU calculations
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+
+// for sign operations
+#define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
+
+// the sample rate delay and IMU
+#define BNO055_SAMPLERATE_DELAY_MS (500)
+Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
+
 //  Pins
 //  BT VCC to Arduino 5V out.
 //  BT GND to GND
@@ -58,7 +71,6 @@ float getPhi(imu::Vector<3> euler) {
 
 // updates the euler shift angles (theta and phi)
 void updateShifts() {
-
   // calibrate and obtain the euler angles from the IMU
   uint8_t system, gyro, accel, mg = 0;
   myIMU.getCalibration(&system, &gyro, &accel, &mg);
@@ -87,6 +99,9 @@ void setup() {
   myIMU.begin();
   int8_t temp = myIMU.getTemp();
   myIMU.setExtCrystalUse(true);
+
+  // crucial
+  delay(1000);
 }
 
 void loop() {
@@ -116,7 +131,10 @@ void loop() {
   // send the string over BT char by char
   for (int i = 0; i < data.length(); i++) {
     sender.write(data.charAt(i));
-    Serial.print("Data sent: ");
-    Serial.println(data.charAt(i));
+    // Serial.print("Data sent: ");
+    // Serial.println(data.charAt(i));
   }
+
+  // delay for the designated sample rate delay
+  delay(BNO055_SAMPLERATE_DELAY_MS);
 }
