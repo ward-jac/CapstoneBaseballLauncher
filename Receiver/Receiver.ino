@@ -48,12 +48,12 @@ int act_RPWM = 10;  // linear actutator RPWM connection
 int act_LPWM = 11;  // linear actuator LWPM connection
 
 // state variables for linear actuator
-int actReading = 0;        // the value read by the linear actuator potentiometer
-float actSpeed;            // speed of the linear actuator (value from 0-255)
-float strokeLength = 8.0;  // length of linear actuator stroke
-int maxAnalogReading = 1023;      // max value that linear actuator is allowed to move to
-int minAnalogReading = 0;      // min value that linear actuator is allowed to move to
-int actPos;                // the set position that the linear actuator is being moved to
+int actReading = 0;          // the value read by the linear actuator potentiometer
+float actSpeed;              // speed of the linear actuator (value from 0-255)
+float strokeLength = 8.0;    // length of linear actuator stroke
+int maxAnalogReading = 926;  // max value that linear actuator is allowed to move to
+int minAnalogReading = 39;   // min value that linear actuator is allowed to move to
+int actPos;                  // the set position that the linear actuator is being moved to
 
 // state variables for servo
 float servoSpeed;  // the scaled rotation of the servo (value from 0-1)
@@ -74,12 +74,12 @@ bool validMovement(int dir, int pot) {
 }
 
 // maps input to output positions
-float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
-  return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
+float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
 
 // moves the linear actuator in a given direction at a given speed
-void driveActuator(int dir, int speed) {
+void driveActuator(int dir, float Speed) {
   // update the current potentiometer reading
   actReading = analogRead(act_pin);
 
@@ -90,7 +90,7 @@ void driveActuator(int dir, int speed) {
 
   switch (dir) {
     case 1:  // extension
-      analogWrite(act_RPWM, speed);
+      analogWrite(act_RPWM, Speed);
       analogWrite(act_LPWM, 0);
       break;
 
@@ -99,9 +99,9 @@ void driveActuator(int dir, int speed) {
       analogWrite(act_LPWM, 0);
       break;
 
-    case -1:  // retraction
+    case -1: // retraction
       analogWrite(act_RPWM, 0);
-      analogWrite(act_LPWM, speed);
+      analogWrite(act_LPWM, Speed);
       break;
   }
 }
@@ -124,7 +124,7 @@ void moveAct(float phi) {
   float diff = abs(phi) - sensitivity[sensitivityMode];
 
   // determine the actuator speed based on phi
-  float actSpeed = mapFloat(abs(phi), 0, maxAngle, 0, 255);
+  float actSpeed = mapFloat(abs(phi), 0.0, maxAngle, 0.0, 255.0);
 
   // extends the linear actuator if phi surpasses the minimum angle
   if (diff > 0) {
