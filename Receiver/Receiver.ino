@@ -27,8 +27,8 @@ String data = "";
 char c = ' ';
 
 // IMU angles
-float theta = 0.0;
-float phi = 0.0;
+float theta_angle = 0.0;
+float phi_angle = 0.0;
 
 // for the servo motor
 ServoTimer2 myServo;
@@ -51,8 +51,8 @@ int act_LPWM = 11;  // linear actuator LWPM connection
 int actReading = 0;        // the value read by the linear actuator potentiometer
 float actSpeed;            // speed of the linear actuator (value from 0-255)
 float strokeLength = 8.0;  // length of linear actuator stroke
-int maxAnalogReading;      // max value that linear actuator is allowed to move to
-int minAnalogReading;      // min value that linear actuator is allowed to move to
+int maxAnalogReading = 1023;      // max value that linear actuator is allowed to move to
+int minAnalogReading = 0;      // min value that linear actuator is allowed to move to
 int actPos;                // the set position that the linear actuator is being moved to
 
 // state variables for servo
@@ -68,16 +68,29 @@ int sensitivityMode = 1;
 // the minimum angle needed to activate
 int sensitivity[] = { 7, 15 };
 
+// returns whether or not a given linear actuator movement is valid
+bool validMovement(int dir, int pot) {
+  return (dir == 0) || ((dir == 1) && (pot < maxAnalogReading)) || ((dir == -1) && (pot > minAnalogReading));
+}
+
 // maps input to output positions
 float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
   return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
 }
 
 // moves the linear actuator in a given direction at a given speed
-void driveActuator(int Direction, int Speed) {
-  switch (Direction) {
+void driveActuator(int dir, int speed) {
+  // update the current potentiometer reading
+  actReading = analogRead(act_pin);
+
+  // confirm that the actuator can move in the specified direction
+  if (!validMovement(dir, actReading)) {
+    return;
+  }
+
+  switch (dir) {
     case 1:  // extension
-      analogWrite(act_RPWM, Speed);
+      analogWrite(act_RPWM, speed);
       analogWrite(act_LPWM, 0);
       break;
 
@@ -88,28 +101,27 @@ void driveActuator(int Direction, int Speed) {
 
     case -1:  // retraction
       analogWrite(act_RPWM, 0);
-      analogWrite(act_LPWM, Speed);
+      analogWrite(act_LPWM, speed);
       break;
   }
 }
 
 // moves the linear actuator accordingly if the vertical (up and down) IMU angle surpasses the minimum angle
 void moveAct(float phi) {
-  // don't move the machine if the values are incorrect
-  if (abs(phi) > dangerZone) {
-    phi = 0;
-  }
+  // the absolute value of phi
+  float a = abs(phi);
 
-  // constrain phi within the max angles
-  if (abs(phi) > maxAngle) {
+  // don't move the machine if the values are incorrect
+  if (a > dangerZone) {
+    phi = 0.0;
+  }
+  // otherwise constrain phi within the max angles
+  else if (a > maxAngle) {
     phi = sgn(phi) * maxAngle;
   }
 
   // the difference between phi and the activation angle for a given sensitivity
   float diff = abs(phi) - sensitivity[sensitivityMode];
-
-  // obtain the analog potentiometer reading of the linear actuator
-  actReading = analogRead(act_pin);
 
   // determine the actuator speed based on phi
   float actSpeed = mapFloat(abs(phi), 0, maxAngle, 0, 255);
@@ -120,21 +132,21 @@ void moveAct(float phi) {
   }
   // does not move the linear actuator if the minimum angle isn't surpassed
   else {
-    actPos = actReading;
     driveActuator(0, actSpeed);
   }
 }
 
 // moves the servo accordingly if the horizontal (left and right) IMU angle surpasses the minimum angle
 void moveServo(float theta) {
+  // absolute value of theta
+  float a = abs(theta);
 
   // don't move the machine if the values are incorrect
-  if (abs(theta) > dangerZone) {
-    theta = 0;
+  if (a > dangerZone) {
+    theta = 0.0;
   }
-
-  // constrain theta within the max angles
-  if (abs(theta) > maxAngle) {
+  // otherwise constrain theta within the max angles
+  else if (a > maxAngle) {
     theta = sgn(theta) * maxAngle;
   }
 
@@ -239,12 +251,12 @@ void loop() {
   // check to see if the entire string was received (last char is etx)
   if (c == etx) {
     // update theta and phi and reset the data string
-    theta = stringToTheta(data);
-    phi = stringToPhi(data);
+    theta_angle = stringToTheta(data);
+    phi_angle = stringToPhi(data);
 
     // move the servo and linear actuator if necessary
-    moveServo(theta);
-    moveAct(phi);
+    moveServo(theta_angle);
+    moveAct(phi_angle);
 
     // reset the data string
     data = "";
@@ -255,7 +267,7 @@ void loop() {
 
     Serial.println("");
 
-    Serial.println("Theta: " + String(theta));
-    Serial.println("Phi: " + String(phi));
+    Serial.println("Theta: " + String(theta_angle));
+    Serial.println("Phi: " + String(phi_angle));
   }
 }
