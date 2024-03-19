@@ -1,42 +1,54 @@
 // for the relays
-const int relay1 = 2;
-const int relay2 = 3;
-const int relay3 = 4;
-const int relay4 = 5;
-int relays[4] = { relay1, relay2, relay3, relay4 };
+const int power = 2;
+const int speedUp = 3;
+const int speedDown = 4;
+const int enter = 5;
 
-// briefly turns on a given relay
-void turnOnRelay(int relay) {
+// turns the launcher on/off
+void togglePower() {
+  digitalWrite(power, !digitalRead(power));
+}
+
+// pulses a given relay to simulate a button hold
+void changeSpeed(int relay) {
   for (int i = 0; i < 10; i++) {
-    digitalWrite(relays[relay - 1], LOW);
+    digitalWrite(relay, LOW);
     delay(50);
-    digitalWrite(relays[relay - 1], HIGH);
+    digitalWrite(relay, HIGH);
     delay(50);
   }
 }
 
 void setup() {
   // establish the relays as outputs
-  pinMode(relay1, OUTPUT);
-  pinMode(relay2, OUTPUT);
-  pinMode(relay3, OUTPUT);
-  pinMode(relay4, OUTPUT);
+  pinMode(power, OUTPUT);
+  pinMode(speedUp, OUTPUT);
+  pinMode(speedDown, OUTPUT);
+  pinMode(enter, OUTPUT);
 
   // ensure all of them are off
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay2, HIGH);
-  digitalWrite(relay3, HIGH);
-  digitalWrite(relay4, HIGH);
+  digitalWrite(power, HIGH);
+  digitalWrite(speedUp, HIGH);
+  digitalWrite(speedDown, HIGH);
+  digitalWrite(enter, HIGH);
 
   Serial.begin(9600);
 }
 
 void loop() {
-  // to determine which relay to turn on
-  int relay;
+  // to determine what to do
+  int command;
 
+  // read what we want to do from the serial monitor
   if (Serial.available() > 0) {
-    relay = Serial.parseInt();
-    turnOnRelay(relay);
+    command = Serial.parseInt();
+
+    if (command == 1) {
+      togglePower();
+    } else if (command == 2) {
+      changeSpeed(speedUp);
+    } else if (command == 3) {
+      changeSpeed(speedDown);
+    }
   }
 }
