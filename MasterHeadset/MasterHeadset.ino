@@ -8,7 +8,7 @@
 // IMU
 const int IMU_ADDRESS = 55;
 IMU _imu(IMU_ADDRESS);
-AltSoftSerial bluetoothSerial;
+AltSoftSerial sender;
 
 // Audio
 const int SP_RX_PIN = 123;
@@ -132,7 +132,7 @@ char checkSpeedInput()
     }
 }
 
-char checkAutoLoadInput()
+char checkFireInput()
 {
     // check if input is active
     if (digitalRead(AUTOLOAD_INPUT_PIN) == LOW)
@@ -140,65 +140,47 @@ char checkAutoLoadInput()
     }
 }
 
-void sendFloat(float f)
+void sendMessage(float theta, float phi)
 {
-    // Convert the float to a byte array
-    byte byteArray[sizeof(float)];
-    memcpy(byteArray, &f, sizeof(float));
+    // start of text char
+    char stx = 2;
 
-    // Send the byte array over Bluetooth
-    bluetoothSerial.write(byteArray, sizeof(byteArray));
+    // end of text char
+    char etx = 3;
+
+    // create the data string to send over BT
+    String data = stx + String(theta, 1) + " " + String(phi, 1) + etx;
+
+    // send the string over BT char by char
+    for (int i = 0; i < data.length(); i++) {
+    sender.write(data.charAt(i));
+    // Serial.print("Data sent: ");
+    // Serial.println(data.charAt(i));
+    }
 }
 
 void loop()
 {
     if (startUp)
     {
+        delay(500);
         _imu.calibrate();
+        delay(500);
     }
 
     speechRecognition();
     checkLockInput();
     checkSpeedInput();
-    checkAutoLoadInput();
+    checkFireInput();
 
     // Do not send IMU data if lock is enabled
     if(!isLocked)
     {   
-        /*
-        float phi = _imu.getPhi();
         float theta = _imu.getTheta();
-        bluetoothSerial.print(phi);
-        bluetoothSerial.print(" ");
-        bluetoothSerial.println(theta);
-        Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-        */
-       
         float phi = _imu.getPhi();
-        bluetoothSerial.write('P');
-        sendFloat(phi);
-
-        float theta = _imu.getTheta();
-        sendFloat(theta);
+        //sendMessage function
 
         Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-
-        /*
-        // writing phi over bluetooth
-        float phi = _imu.getPhi();
-        char bufferPhi[7]; // (+/-) x x x . x x
-        dtostrf(phi, 3, 2, bufferPhi);
-        bluetoothSerial.write('P');
-        bluetoothSerial.write(bufferPhi);
-
-        // writing theta over bluetooth
-        float theta = _imu.getTheta();
-        char bufferTheta[7]; // (+/-) x x x . x x
-        dtostrf(theta, 3, 2, bufferTheta);
-        bluetoothSerial.write('T');
-        bluetoothSerial.write(bufferTheta);
-        bluetoothSerial.write('\n');
-        */
     }
 
     startUp = false;

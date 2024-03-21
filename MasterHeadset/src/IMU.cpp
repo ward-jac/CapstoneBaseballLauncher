@@ -40,20 +40,11 @@ void IMU::calibrate() {
 // returns the shifted value of theta after calibration
 float IMU::getTheta() {
   imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
-  int shifted = euler.x() + (-1 * euler_shift_theta);
-
-  // to bound the angle from -180 to 180 degrees
-  if (shifted > 180.0) {
-      return shifted - 360.0;
-  }
-  else {
-      return shifted;
-  }
+  return euler.x() - euler_shift_theta;
 }
 
 // returns the shifted value of phi after calibration
 float IMU::getPhi() {
-  
   imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
-  return euler.z() + (-1 * euler_shift_phi);
+  return euler.z() - euler_shift_phi;
 }
