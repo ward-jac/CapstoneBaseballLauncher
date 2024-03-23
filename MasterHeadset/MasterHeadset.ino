@@ -71,7 +71,7 @@ char checkLockInput()
         if (millis() - lockStartTime == holdTime)
         {
             isLocked = true;
-            speaker.play("Face To Calibrate");
+            speaker.play("Release to calibrate");
             inCalibration = true;
         }
 
@@ -89,6 +89,12 @@ char checkLockInput()
             else
             {
                 isLocked = !isLocked;
+                if(!isLocked){
+                    speaker.play("Launcher unlocked");
+                }
+                else {
+                    speaker.play("Launcher locked");
+                }
             }
         }
     }

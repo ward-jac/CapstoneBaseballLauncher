@@ -36,32 +36,19 @@ float Launcher::mapFloat(long x, long in_min, long in_max, long out_min, long ou
 }
 
 // increments speed by incSpeed
-float Launcher::addSpeed(int incSpeed) {   
-    void addSpeedHelper(int speed){
-      if (speed < 0)
-    {
-        addSpeed(speed + 1);
-        digitalWrite(SPEED_UP, LOW);
-        delay(50);
-        digitalWrite(SPEED_UP, HIGH);
-        delay(50);
-    }
-    else if (speed > 0)
-    {
-        addSpeed(speed - 1);
-        digitalWrite(SPEEDUP_PIN, HIGH);
-        digitalWrite(SPEEDUP_PIN, LOW);
-    }
-    }
-    delay(launcherProcessingSpeed);
-    for (int i = 0; i < 10; i++) {
-      digitalWrite(relay, LOW);
-      delay(50);
-      digitalWrite(relay, HIGH);
-      delay(50);
-    }
-
-    
+float Launcher::addSpeed(int incSpeed) {
+  if (incSpeed < 0) {
+    addSpeed(incSpeed + 1);
+    digitalWrite(SPEED_DOWN, LOW);
+    delay(10);
+    digitalWrite(SPEED_DOWN, HIGH);
+  }
+  else if (incSpeed > 0) {
+    addSpeed(incSpeed - 1);
+    digitalWrite(SPEED_UP, LOW);
+    delay(10);
+    digitalWrite(SPEED_UP, HIGH);
+  }
 }
 
 // moves the linear actuator in a given direction at a given speed
@@ -86,7 +73,6 @@ void Launcher::driveActuator(int Direction, int Speed) {
 
 // moves the linear actuator accordingly if the vertical (up and down) IMU angle surpasses the minimum angle
 void Launcher::moveAct(float phi) {
-
     // obtain the analog potentiometer reading of the linear actuator
     actReading = analogRead(act_pin);
 
@@ -116,41 +102,6 @@ void Launcher::moveAct(float phi) {
         driveActuator(0, actSpeed);
     }
 }
-
-/*
-// moves the servo accordingly if the horizontal (left and right) IMU angle surpasses the minimum angle
-void Launcher::moveServo(float theta) {
-
-  // conversion from deg to microsec with 0 deg = 1472 microsec
-  int maxMicro = round(1472.0 + (45.0 * 10.0 / 3.0));  
-  int minMicro = round(1472.0 - (45.0 * 10.0 / 3.0));
-
-  // obtain the analog potentiometer reading of the servo
-
-  // constrain theta within the max angles
-  if (abs(theta) > maxAngle) {
-    theta = sgn(theta);
-    theta = theta * maxAngle;
-  }
-
-  // the difference between theta and the activation angle for a given sensitivity
-  float diff = abs(theta) - sensitivity[sensitivityMode];
-
-  // determine the servo rotation based on theta
-  float servoSpeed = mapFloat(abs(theta), 0, maxAngle, 0, 1); 
-  
-  // rotates the servo if the theta surpasses the minimum angle
-  if (diff > 0) { 
-    // the servo position (in degrees) is mapped to microseconds to gain more resolution
-    microPos = map(theta, -1 * maxAngle, maxAngle, minMicro, maxMicro); 
-    myServo.write(microPos * servoSpeed);
-  }
-  // does not move the servo if the minimum angle isn't surpassed
-  else { 
-    myServo.write(0);
-  }
-}
-*/
 
 void Launcher::moveServo(float theta) {
   int sensLevel1 = 2;
