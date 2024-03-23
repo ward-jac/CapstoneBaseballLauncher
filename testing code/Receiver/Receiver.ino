@@ -42,10 +42,10 @@ int maxAngle = 30;
 // to deal with gimbal lock
 int dangerZone = 60;
 
-// Arduino pins for linear actuator
+// Arduino pins for linear actuator (don't use pin 10)
 int act_pin = A0;   // linear actuator potentiometer pin
-int act_RPWM = 10;  // linear actutator RPWM connection
-int act_LPWM = 11;  // linear actuator LWPM connection
+int act_RPWM = 11;  // linear actutator RPWM connection
+int act_LPWM = 12;  // linear actuator LWPM connection
 
 // state variables for linear actuator
 int actReading = 0;          // the value read by the linear actuator potentiometer
@@ -154,14 +154,16 @@ void moveServo(float theta) {
   float diff = abs(theta) - sensitivity[sensitivityMode];
 
   // before moving, obtain the last written position of the servo
-  prevServoPos = myServo.read();
+  // prevServoPos = myServo.read();
 
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
     if (theta > 0) {
-      myServo.write(prevServoPos - 12);
+      myServo.write(50);
+      // myServo.write(prevServoPos - 12);
     } else if (theta < 0) {
-      myServo.write(prevServoPos + 12);
+      // myServo.write(prevServoPos + 12);
+      myServo.write(-50);
     }
   }
 }
@@ -223,7 +225,7 @@ void setup() {
   Serial.println("Receiver started at 9600");
 
   // zero the servo and attach it to the Arduino
-  myServo.write(servoZero);
+  //myServo.write(servoZero);
   myServo.attach(servoPin);
 
   // 1 second delay
