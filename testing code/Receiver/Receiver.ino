@@ -42,7 +42,7 @@ int maxAngle = 30;
 // to deal with gimbal lock
 int dangerZone = 60;
 
-// Arduino pins for linear actuator
+// Arduino pins for linear actuator (don't use pin 10)
 int act_pin = A0;   // linear actuator potentiometer pin
 int act_RPWM = 11;  // linear actutator RPWM connection
 int act_LPWM = 12;  // linear actuator LWPM connection
