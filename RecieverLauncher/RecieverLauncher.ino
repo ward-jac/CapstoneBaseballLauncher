@@ -18,45 +18,6 @@ void clearBluetoothBuffer() {
   }
 }
 
-void addSpeed(int speed)
-{
-    delay(launcherProcessingSpeed);
-
-    if (speed < 0)
-    {
-        addSpeed(speed + 1);
-        digitalWrite(SPEEDDOWN_PIN, HIGH);
-        digitalWrite(SPEEDDOWN_PIN, LOW);
-    }
-    else if (speed > 0)
-    {
-        addSpeed(speed - 1);
-        digitalWrite(SPEEDUP_PIN, HIGH);
-        digitalWrite(SPEEDUP_PIN, LOW);
-    }
-
-    clearBluetoothBuffer();
-}
-
-float readB() {
-  Serial.println("here");
-  if (bluetoothSerial.available() >= sizeof(float))
-  { // Check if there are enough bytes available
-    // Read the incoming bytes into a byte array
-    byte byteArray[sizeof(float)];
-    bluetoothSerial.readBytes(byteArray, sizeof(byteArray));
-    
-    //Serial.println(String(byteArray[1]));
-
-    // Convert the byte array back to an integer
-    float receivedData;
-    memcpy(&receivedData, byteArray, sizeof(receivedData));
-
-    return receivedData;
-  }
-}
-
-
 void setup() {
     // Open serial communications and wait for port to open:
     Serial.begin(19200);

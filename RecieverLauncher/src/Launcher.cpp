@@ -19,6 +19,12 @@ const int act_LPWM = 11;            // linear actuator LWPM connection
 const int actReading = 0;
 const int strokeLength = 8.0;
 
+// for the relays
+const int POWER = 2;
+const int SPEED_UP = 3;
+const int SPEED_DOWN = 4;
+const int ENTER = 5;
+
 Launcher::Launcher() {
   myServo.write(servoPos);
   myServo.attach(servoPin);
@@ -27,6 +33,35 @@ Launcher::Launcher() {
 // maps input to output positions
 float Launcher::mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
   return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
+}
+
+// increments speed by incSpeed
+float Launcher::addSpeed(int incSpeed) {   
+    void addSpeedHelper(int speed){
+      if (speed < 0)
+    {
+        addSpeed(speed + 1);
+        digitalWrite(SPEED_UP, LOW);
+        delay(50);
+        digitalWrite(SPEED_UP, HIGH);
+        delay(50);
+    }
+    else if (speed > 0)
+    {
+        addSpeed(speed - 1);
+        digitalWrite(SPEEDUP_PIN, HIGH);
+        digitalWrite(SPEEDUP_PIN, LOW);
+    }
+    }
+    delay(launcherProcessingSpeed);
+    for (int i = 0; i < 10; i++) {
+      digitalWrite(relay, LOW);
+      delay(50);
+      digitalWrite(relay, HIGH);
+      delay(50);
+    }
+
+    
 }
 
 // moves the linear actuator in a given direction at a given speed
@@ -126,7 +161,7 @@ void Launcher::moveServo(float theta) {
   if(servoPos<45 && servoPos>-45) {
     if(theta>40) {
       servoPos = servoPos + sensLevel4;
-      myServo.write(servoPos);
+      move.write(servoPos);
     }
     else if(theta>30) {
       servoPos = servoPos + sensLevel3;

@@ -1,5 +1,5 @@
 {
     "configuration": "cpu=atmega2560",
     "board": "arduino:avr:mega",
-    "sketch": "LauncherCode.ino"
+    "sketch": "MasterHeadset\\MasterHeadset.ino"
 }
