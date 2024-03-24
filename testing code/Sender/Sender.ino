@@ -1,15 +1,15 @@
 // required for IMU calculations
-#include "Adafruit_BNO08x_RVC.h"
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
 
 // for sign operations
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
 
 // the sample rate delay and IMU
-#define SAMPLE_RATE_DELAY (500)
-Adafruit_BNO08x_RVC rvc = Adafruit_BNO08x_RVC();
-
-// to obtian the IMU readings
-BNO08x_RVC_Data heading;
+#define BNO055_SAMPLERATE_DELAY_MS (500)
+Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
 
 //  Pins
 //  BT VCC to Arduino 5V out.
@@ -50,26 +50,37 @@ float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
 }
 
 // returns the shifted value of theta after calibration
-float getTheta(BNO08x_RVC_Data heading) {
-  return heading.yaw + (-1.0 * shift_theta);
+float getTheta(imu::Vector<3> euler) {
+
+  float shifted = euler.x() + (-1.0 * shift_theta);
+
+  // to bound the angle from -180 to 180 degrees
+  if (shifted > 180.0) {
+    return shifted - 360.0;
+  } else if (shifted < -180.0) {
+    return shifted + 360.0;
+  } else {
+    return shifted;
+  }
 }
 
 // returns the shifted value of phi after calibration
-float getPhi(BNO08x_RVC_Data heading) {
-  return heading.pitch + (-1.0 * shift_phi);
+float getPhi(imu::Vector<3> euler) {
+  return euler.z() + (-1.0 * shift_phi);
 }
 
 // updates the euler shift angles (theta and phi)
 void updateShifts() {
-  if (!rvc.read(&heading)) {
-    return;
-  }
+  // calibrate and obtain the euler angles from the IMU
+  uint8_t system, gyro, accel, mg = 0;
+  myIMU.getCalibration(&system, &gyro, &accel, &mg);
+  imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
 
   // euler x = theta
-  shift_theta = heading.yaw;
+  shift_theta = euler.x();
 
   // euler z = phi
-  shift_phi = heading.pitch;
+  shift_phi = euler.z();
 }
 
 void setup() {
@@ -85,6 +96,10 @@ void setup() {
   sender.begin(9600);
   Serial.println("Sender started at 9600");
 
+  myIMU.begin();
+  int8_t temp = myIMU.getTemp();
+  myIMU.setExtCrystalUse(true);
+
   // crucial
   delay(1000);
 }
@@ -97,13 +112,12 @@ void loop() {
     updateCount++;
   }
 
-  if (!rvc.read(&heading)) {
-    Serial.println("Error reading the IMU.");
-  }
+  // obtain the current euler angles of the imu
+  imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
 
-  // obtain theta and phi
-  theta = getTheta(heading);
-  phi = getPhi(heading);
+  // convert the euler angles to theta and phi
+  theta = getTheta(euler);
+  phi = getPhi(euler);
 
   // start of text char
   char stx = 2;
@@ -122,5 +136,5 @@ void loop() {
   }
 
   // delay for the designated sample rate delay
-  delay(SAMPLE_RATE_DELAY);
+  delay(BNO055_SAMPLERATE_DELAY_MS);
 }
