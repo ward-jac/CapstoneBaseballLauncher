@@ -71,7 +71,17 @@ float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
 
 // returns the shifted value of theta after calibration
 float getTheta(float theta) {
-  return theta + (-1.0 * shift_theta);
+  float shifted = theta + (-1.0 * shift_theta);
+
+  // to bound the angle from -180 to 180 degrees
+  if (shifted > 180.0) {
+    shifted = shifted - 360.0;
+  } else if (shifted < -180.0) {
+    shifted = shifted + 360.0;
+  }
+
+  // to flip left/right
+  return -shifted;
 }
 
 // returns the shifted value of phi after calibration
@@ -103,10 +113,14 @@ void quaternionToEulerRV(sh2_RotationVectorWAcc_t* rotational_vector, euler_t* y
 
 // updates the euler shift angles (theta and phi)
 void updateShifts() {
-  // obtain the current values of theta and phi from the IMU
-  quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
   shift_theta = ypr.yaw;
   shift_phi = ypr.pitch;
+}
+
+// updates the angles themselves (theta and phi)
+void updateAngles() {
+  theta = ypr.yaw;
+  phi = ypr.pitch;
 }
 
 void setup() {
@@ -132,19 +146,20 @@ void setup() {
 }
 
 void loop() {
-  // zero the IMU at the very beginning of the program
+  // zero the IMU or get readings
   if (bno08x.getSensorEvent(&sensorValue)) {
+    // read the IMU
+    quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
+
+    // zero the IMU at the very beginning of the program
     if (updateCount < 1) {
       updateShifts();
       updateCount++;
     }
-  }
-
-  // read the IMU and update theta and phi
-  if (bno08x.getSensorEvent(&sensorValue)) {
-    quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
-    theta = ypr.yaw;
-    phi = ypr.pitch;
+    // update theta and phi
+    else {
+      updateAngles();
+    }
   }
 
   // convert the euler angles to theta and phi
