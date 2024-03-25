@@ -39,9 +39,6 @@ int prevServoPos = servoZero;
 // the maximum values of theta and phi
 int maxAngle = 30;
 
-// to deal with gimbal lock
-int dangerZone = 60;
-
 // Arduino pins for linear actuator (don't use pin 10)
 int act_pin = A0;   // linear actuator potentiometer pin
 int act_RPWM = 11;  // linear actutator RPWM connection
@@ -111,12 +108,8 @@ void moveAct(float phi) {
   // the absolute value of phi
   float a = abs(phi);
 
-  // don't move the machine if the values are incorrect
-  if (a > dangerZone) {
-    phi = 0.0;
-  }
-  // otherwise constrain phi within the max angles
-  else if (a > maxAngle) {
+  // constrain phi within the max angles
+  if (a > maxAngle) {
     phi = sgn(phi) * maxAngle;
   }
 
@@ -141,12 +134,8 @@ void moveServo(float theta) {
   // absolute value of theta
   float a = abs(theta);
 
-  // don't move the machine if the values are incorrect
-  if (a > dangerZone) {
-    theta = 0.0;
-  }
-  // otherwise constrain theta within the max angles
-  else if (a > maxAngle) {
+  // constrain theta within the max angles
+  if (a > maxAngle) {
     theta = sgn(theta) * maxAngle;
   }
 

@@ -1,15 +1,35 @@
 // required for IMU calculations
-#include <Wire.h>
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BNO055.h>
-#include <utility/imumaths.h>
+#include <Arduino.h>
+#include <Adafruit_BNO08x.h>
+
+// for I2C or UART
+#define BNO08X_RESET -1
 
 // for sign operations
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
 
 // the sample rate delay and IMU
-#define BNO055_SAMPLERATE_DELAY_MS (500)
-Adafruit_BNO055 myIMU = Adafruit_BNO055(55);
+#define SAMPLERATE_DELAY_MS (250)
+Adafruit_BNO08x bno08x(BNO08X_RESET);
+sh2_SensorValue_t sensorValue;
+
+// Top frequency is about 250Hz but this report is more accurate
+sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
+long reportIntervalUs = 5000;
+
+// euler angles
+struct euler_t {
+  float yaw;
+  float pitch;
+  float roll;
+} ypr;
+
+void setReports(sh2_SensorId_t reportType, long report_interval) {
+  Serial.println("Setting desired reports");
+  if (!bno08x.enableReport(reportType, report_interval)) {
+    Serial.println("Could not enable stabilized remote vector");
+  }
+}
 
 //  Pins
 //  BT VCC to Arduino 5V out.
@@ -50,74 +70,86 @@ float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
 }
 
 // returns the shifted value of theta after calibration
-float getTheta(imu::Vector<3> euler) {
-
-  float shifted = euler.x() + (-1.0 * shift_theta);
-
-  // to bound the angle from -180 to 180 degrees
-  if (shifted > 180.0) {
-    return shifted - 360.0;
-  } else if (shifted < -180.0) {
-    return shifted + 360.0;
-  } else {
-    return shifted;
-  }
+float getTheta(float theta) {
+  return theta + (-1.0 * shift_theta);
 }
 
 // returns the shifted value of phi after calibration
-float getPhi(imu::Vector<3> euler) {
-  return euler.z() + (-1.0 * shift_phi);
+float getPhi(float phi) {
+  return phi + (-1.0 * shift_phi);
+}
+
+void quaternionToEuler(float qr, float qi, float qj, float qk, euler_t* ypr, bool degrees = false) {
+
+  float sqr = sq(qr);
+  float sqi = sq(qi);
+  float sqj = sq(qj);
+  float sqk = sq(qk);
+
+  ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
+  ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
+  ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
+
+  if (degrees) {
+    ypr->yaw *= RAD_TO_DEG;
+    ypr->pitch *= RAD_TO_DEG;
+    ypr->roll *= RAD_TO_DEG;
+  }
+}
+
+void quaternionToEulerRV(sh2_RotationVectorWAcc_t* rotational_vector, euler_t* ypr, bool degrees = false) {
+  quaternionToEuler(rotational_vector->real, rotational_vector->i, rotational_vector->j, rotational_vector->k, ypr, degrees);
 }
 
 // updates the euler shift angles (theta and phi)
 void updateShifts() {
-  // calibrate and obtain the euler angles from the IMU
-  uint8_t system, gyro, accel, mg = 0;
-  myIMU.getCalibration(&system, &gyro, &accel, &mg);
-  imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
-
-  // euler x = theta
-  shift_theta = euler.x();
-
-  // euler z = phi
-  shift_phi = euler.z();
+  // obtain the current values of theta and phi from the IMU
+  quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
+  shift_theta = ypr.yaw;
+  shift_phi = ypr.pitch;
 }
 
 void setup() {
   // start serial monitor communication at 9600 baud rate
   Serial.begin(9600);
-  Serial.print("Sketch:   ");
-  Serial.println(__FILE__);
-  Serial.print("Uploaded: ");
-  Serial.println(__DATE__);
   Serial.println(" ");
 
   // start sender BT at 9600 baud rate
   sender.begin(9600);
   Serial.println("Sender started at 9600");
 
-  myIMU.begin();
-  int8_t temp = myIMU.getTemp();
-  myIMU.setExtCrystalUse(true);
+  // Try to initialize the IMU
+  if (!bno08x.begin_I2C()) {
+    Serial.println("Failed to find BNO08x chip");
+    while (1) { delay(10); }
+  }
+  Serial.println("BNO08x Found!");
+  setReports(reportType, reportIntervalUs);
+  Serial.println("Reading events");
 
   // crucial
-  delay(1000);
+  delay(2000);
 }
 
 void loop() {
   // zero the IMU at the very beginning of the program
-  if (updateCount < 1) {
-    updateShifts();
-    Serial.println("Calibrated\n");
-    updateCount++;
+  if (bno08x.getSensorEvent(&sensorValue)) {
+    if (updateCount < 1) {
+      updateShifts();
+      updateCount++;
+    }
   }
 
-  // obtain the current euler angles of the imu
-  imu::Vector<3> euler = myIMU.getVector(Adafruit_BNO055::VECTOR_EULER);
+  // read the IMU and update theta and phi
+  if (bno08x.getSensorEvent(&sensorValue)) {
+    quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
+    theta = ypr.yaw;
+    phi = ypr.pitch;
+  }
 
   // convert the euler angles to theta and phi
-  theta = getTheta(euler);
-  phi = getPhi(euler);
+  theta = getTheta(theta);
+  phi = getPhi(phi);
 
   // start of text char
   char stx = 2;
@@ -136,5 +168,5 @@ void loop() {
   }
 
   // delay for the designated sample rate delay
-  delay(BNO055_SAMPLERATE_DELAY_MS);
+  delay(SAMPLERATE_DELAY_MS);
 }
