@@ -1,4 +1,4 @@
-//  Pins
+//  Pins for BT connection
 //  BT VCC to Arduino 5V out.
 //  BT GND to GND
 //  Arduino 48 (Mega) RX -> BT TX no need voltage divider
@@ -11,15 +11,16 @@ AltSoftSerial sender;
 // other libraries to include
 #include <avr/io.h>
 #include <stdlib.h>
-// #include <Arduino.h>
 #include "include/IMU.h"
 #include "include/Audio.h"
 
 // to define the IMU
-const int IMU_ADDRESS = 55;
+// TODO: edit for BNO085
+const int IMU_ADDRESS = 55;  // the model of the IMU
 IMU _imu(IMU_ADDRESS);
 
 // to play audio files
+// TODO: Same pin?
 const int SP_RX_PIN = 123;
 const int SP_TX_PIN = 123;
 Audio speaker(SP_RX_PIN, SP_TX_PIN);
@@ -27,23 +28,23 @@ Audio speaker(SP_RX_PIN, SP_TX_PIN);
 // how long buttons need to be held to change response
 const long holdTime = 2000;
 
-// speed control
-const int SPEED_INPUT_PIN = 4;
-const int launcherProcessingSpeed = 200;  // fastest time that launcher can process speed change inputs
-int currentSpeed = 40;
-long speedStartTime;
-bool speedInputActive = false;
-bool isSensitivityLow = true;
-
 // locking
-const int LOCK_INPUT_PIN = 2;
-long lockStartTime;
-bool lockInputActive = false;
+const int LOCK_INPUT_PIN = 2;  // microlight switch to control locking
+long lockStartTime;            // the time the lock control button is pressed
+bool lockPressed = false;
 bool isLocked = false;
 bool inCalibration = false;
 
+// speed control
+const int SPEED_INPUT_PIN = 3;            // microlight switch to control speed
+const int launcherProcessingSpeed = 200;  // fastest time that launcher can process speed change inputs
+int currentSpeed = 40;                    // default speed
+long speedStartTime;                      // the time the speed control button is pressed
+bool speedPressed = false;
+bool isSensitivityLow = true;
+
 // autoloader
-const int AUTOLOAD_INPUT_PIN = 3;
+const int AUTOLOAD_INPUT_PIN = 4;  // microlight switch to control autoloader
 
 void speechRecognition() {
 }
@@ -52,8 +53,8 @@ void speechRecognition() {
 // holding down for holdTime enters calibration mode
 void checkLockInput() {
   // check if input is initially activated
-  if (digitalRead(LOCK_INPUT_PIN) == LOW && !lockInputActive) {
-    lockInputActive = true;
+  if (digitalRead(LOCK_INPUT_PIN) == LOW && !lockPressed) {
+    lockPressed = true;
     lockStartTime = millis();
   } else {
     // check if input is held for holdTime, lock launcher for calibration
@@ -64,8 +65,8 @@ void checkLockInput() {
     }
 
     // check if input is released
-    if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockInputActive) {
-      lockInputActive = false;
+    if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockPressed) {
+      lockPressed = false;
       if (inCalibration) {
         _imu.calibrate();
         speaker.play("Calibrated");
@@ -87,13 +88,13 @@ void checkLockInput() {
 // holding down for holdTime toggles sensitivity
 void checkSpeedInput() {
   // check if input is initially activated
-  if (digitalRead(SPEED_INPUT_PIN) == LOW && !speedInputActive) {
-    speedInputActive = true;
+  if (digitalRead(SPEED_INPUT_PIN) == LOW && !speedPressed) {
+    speedPressed = true;
     speedStartTime = millis();
   }
 
   // check if input is released
-  else if (digitalRead(SPEED_INPUT_PIN) == HIGH && speedInputActive) {
+  else if (digitalRead(SPEED_INPUT_PIN) == HIGH && speedPressed) {
     if (millis() - speedStartTime == holdTime) {
       speaker.play("Changing Sensitivity");
       isSensitivityLow = !isSensitivityLow;
