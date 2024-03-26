@@ -231,9 +231,9 @@ void setup() {
   Serial.println("Sender started at 9600");
 
   // try to initialize the IMU
-  if (!bno08x.begin_I2C()) {
+  while (!bno08x.begin_I2C()) {
     Serial.println("Failed to find BNO08x chip");
-    while (1) { delay(10); }
+    delay(10);
   }
   Serial.println("BNO08x Found!");
   setReports(reportType, reportIntervalUs);
