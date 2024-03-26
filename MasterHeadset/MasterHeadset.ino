@@ -1,9 +1,9 @@
 #include <AltSoftSerial.h>
+#include <SoftwareSerial.h>
 #include <avr/io.h>
 #include <stdlib.h>
 // #include <Arduino.h>
 #include "include/IMU.h"
-#include "include/Audio.h"
 
 // IMU
 const int IMU_ADDRESS = 55;
@@ -11,47 +11,47 @@ IMU _imu(IMU_ADDRESS);
 AltSoftSerial sender;
 
 // Audio
-const int SP_RX_PIN = 123;
-const int SP_TX_PIN = 123;
-Audio speaker(SP_RX_PIN, SP_TX_PIN);
+const int AU_RX_PIN = 15;
+const int AU_TX_PIN = 14;
+SoftwareSerial audioSerial(AU_RX_PIN, AU_TX_PIN);
+
+// Speech
+const int SP_RX_PIN = 17;
+const int SP_TX_PIN = 16;
+SoftwareSerial speechSerial(SP_RX_PIN, SP_TX_PIN);
+
+// Bluetooth
+//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
+//  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
+AltSoftSerial bluetoothSerial;
 
 // how long buttons need to be held to change response
 const long holdTime = 2000;
 
 // Speed Control
-const int SPEED_INPUT_PIN = 4;
+const int SPEED_INPUT_PIN = 7;
 const int launcherProcessingSpeed = 200; // fastest time that launcher can process speed change inputs
-unsigned int currentSpeed = 40;
+unsigned int currSpeed = 40;
 unsigned long speedStartTime;
 boolean speedInputActive = false;
-boolean isSensitivityLow = true;
 
 // Locking
-const int LOCK_INPUT_PIN = 2;
+const int LOCK_INPUT_PIN = 6;
 unsigned long lockStartTime;
 boolean lockInputActive = false;
 boolean isLocked = false;
 boolean inCalibration = false;
 
-// AutoLoad
-const int AUTOLOAD_INPUT_PIN = 3;
 
+const int AUTOLOAD_INPUT_PIN = 5;
 boolean startUp = true;
 
 void setup()
 {
-    // Open serial communications and wait for port to open:
-    Serial.begin(19200);
-    Serial.println("Hello");
-
+    speechSerial.begin(9600);
+    audioSerial.begin(9600);
     bluetoothSerial.begin(9600);
-    bluetoothSerial.println("Hello, world?");
-
     _imu.begin();
-}
-
-void speechRecognition()
-{
 }
 
 // press toggles lock on/off
@@ -65,36 +65,33 @@ char checkLockInput()
         lockStartTime = millis();
     }
 
-    else
+    // check if input is held for holdTime, lock launcher for calibration
+    if (lockInputActive && millis() - lockStartTime > holdTime)
     {
-        // check if input is held for holdTime, lock launcher for calibration
-        if (millis() - lockStartTime == holdTime)
-        {
-            isLocked = true;
-            speaker.play("Release to calibrate");
-            inCalibration = true;
-        }
+        isLocked = true;
+        inCalibration = true;
+        audioSerial.print("14\n");
+    }
 
-        // check if input is released
-        if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockInputActive)
+    // check if input is released
+    if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockInputActive)
+    {
+        lockInputActive = false;
+        if (inCalibration)
         {
-            lockInputActive = false;
-            if (inCalibration)
-            {
-                _imu.calibrate();
-                speaker.play("Calibrated");
-                isLocked = false;
-                inCalibration = false;
+            _imu.calibrate();
+            isLocked = false;
+            inCalibration = false;
+            audioSerial.print("13\n");
+        }
+        else
+        {
+            isLocked = !isLocked;
+            if(!isLocked){
+                audioSerial.print("12\n");
             }
-            else
-            {
-                isLocked = !isLocked;
-                if(!isLocked){
-                    speaker.play("Launcher unlocked");
-                }
-                else {
-                    speaker.play("Launcher locked");
-                }
+            else {
+                audioSerial.print("11\n");
             }
         }
     }
@@ -116,24 +113,17 @@ char checkSpeedInput()
     {
         if (millis() - speedStartTime == holdTime)
         {
-            speaker.play("Changing Sensitivity");
-            isSensitivityLow = !isSensitivityLow;
-            if(isSensitivityLow)
-            {
-                bluetoothSerial.write('L');
-            }
-            else
-            {
-                bluetoothSerial.write('H');
-            }
         }
         else
         {
-            float speed = 10;
-            speaker.play("Add 10 Speed");
-
-            bluetoothSerial.write('S');
-            sendFloat(10);
+            if(currSpeed==100){
+                currSpeed = 10;
+            }
+            else {
+                currSpeed+=10;
+            }
+            audioSerial.print(String(currSpeed/10) + '\n');
+            bluetoothSerial.print("S10\n");
         }
     }
 }
@@ -174,10 +164,44 @@ void loop()
         delay(500);
     }
 
-    speechRecognition();
     checkLockInput();
     checkSpeedInput();
     checkFireInput();
+
+    String msg = "";
+    while(speechSerial.available() > 0) {
+        char c = speechSerial.read();
+        msg += c;
+        if(c=='\n') {
+            msg = msg.substring(0,msg.length()-1);
+            int val = msg.toInt();
+            msg = "";
+            // speed control
+            if(val<=10) {
+                int diff = val*10 - currSpeed;
+                currSpeed = val*10;
+                audioSerial.print(String(currSpeed/10) + '\n');
+                bluetoothSerial.print("S" + String(diff) + '\n');
+            }
+            else {
+                switch(val) {
+                    // lock
+                    case 11:
+
+                    // unlock
+                    case 12:
+                    
+                    // Calibrate
+                    case 13:
+
+                    // Fire
+                    case 14:
+                }
+            }
+        }
+    }
+
+
 
     // Do not send IMU data if lock is enabled
     if(!isLocked)

@@ -93,32 +93,25 @@
 // The VR engine object. Only can exist one, otherwise not worked.
 static DSpotterSDKHL g_oDSpotterSDKHL;
 
+// Communication to main board
+const int RX_PIN = 0;
+const int TX_PIN = 1;
+SoftwareSerial speechSerial(RX_PIN, TX_PIN);
+Serial.begin(19200);
+
 // Callback function for VR engine
 void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
 {
   if (nFlag==DSpotterSDKHL::InitSuccess)
   {
-      //ToDo
   }
   else if (nFlag==DSpotterSDKHL::GetResult)
   {
-      /*
-      When getting an recognition result,
-      the following index and scores are also return to the VRCallback function:
-          nID        The result command id
-          nScore     nScore is used to evaluate how good or bad the result is.
-                     The higher the score, the more similar the voice and the result command are.
-          nSG        nSG is the gap between the voice and non-command (Silence/Garbage) models.
-                     The higher the score, the less similar the voice and non-command (Silence/Garbage) models are.
-          nEnergy    nEnergy is the voice energy level.
-                     The higher the score, the louder the voice.
-      */
-      
       if(nID==10000) {
-        Serial.println("Fireee");
+        Serial.write("1\n");
       }
       else if(nID==10001) {
-        Serial.println("Sending Lock Command");
+        Serial.write("2\n");
       }
   }
   else if (nFlag==DSpotterSDKHL::ChangeStage)

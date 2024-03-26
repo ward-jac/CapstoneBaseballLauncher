@@ -28,6 +28,12 @@ void setup() {
 void loop() {
   // read PHI THETA values from Master IMU to write to Reciever actuator and servo
   //Serial.println(String(bluetoothSerial.read()));
+
+  float val = bluetoothSerial.parseFloat();
+  if(bluetoothSerial.read()=='\n'){
+    // indicated end
+  }
+
   if(bluetoothSerial.read() =='P') 
   { 
     //Serial.println("Recieved P");
