@@ -1,8 +1,9 @@
 #include <AltSoftSerial.h>
 #include <SoftwareSerial.h>
+#include <DFRobotDFPlayerMini.h>
 #include <avr/io.h>
 #include <stdlib.h>
-// #include <Arduino.h>
+#include <Arduino.h>
 #include "include/IMU.h"
 
 // IMU
@@ -11,9 +12,8 @@ IMU _imu(IMU_ADDRESS);
 AltSoftSerial sender;
 
 // Audio
-const int AU_RX_PIN = 15;
-const int AU_TX_PIN = 14;
-SoftwareSerial audioSerial(AU_RX_PIN, AU_TX_PIN);
+#define FPSerial Serial2
+DFRobotDFPlayerMini myDFPlayer;
 
 // Speech
 const int SP_RX_PIN = 17;
@@ -48,10 +48,24 @@ boolean startUp = true;
 
 void setup()
 {
-    speechSerial.begin(9600);
-    audioSerial.begin(9600);
-    bluetoothSerial.begin(9600);
-    _imu.begin();
+    //speechSerial.begin(9600);
+    //bluetoothSerial.begin(9600);
+    //_imu.begin();
+
+    Serial.begin(115200);
+    
+    FPSerial.begin(9600);
+    if (!myDFPlayer.begin(FPSerial, /*isACK = */true, /*doReset = */true)) {  //Use serial to communicate with mp3.
+      Serial.println(F("Unable to begin:"));
+      Serial.println(F("1.Please recheck the connection!"));
+      Serial.println(F("2.Please insert the SD card!"));
+    } else {
+      Serial.println(F("Connection Succesfull"));
+    }
+    myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
+    myDFPlayer.volume(70);
+    myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
+    myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
 }
 
 // press toggles lock on/off
@@ -70,7 +84,7 @@ char checkLockInput()
     {
         isLocked = true;
         inCalibration = true;
-        audioSerial.print("14\n");
+        //audioSerial.print("14\n");
     }
 
     // check if input is released
@@ -79,19 +93,19 @@ char checkLockInput()
         lockInputActive = false;
         if (inCalibration)
         {
-            _imu.calibrate();
+            //_imu.calibrate();
             isLocked = false;
             inCalibration = false;
-            audioSerial.print("13\n");
+            //audioSerial.print("13\n");
         }
         else
         {
             isLocked = !isLocked;
             if(!isLocked){
-                audioSerial.print("12\n");
+                //audioSerial.print("12\n");
             }
             else {
-                audioSerial.print("11\n");
+                //audioSerial.print("11\n");
             }
         }
     }
@@ -122,8 +136,8 @@ char checkSpeedInput()
             else {
                 currSpeed+=10;
             }
-            audioSerial.print(String(currSpeed/10) + '\n');
-            bluetoothSerial.print("S10\n");
+            //audioSerial.print(String(currSpeed/10) + '\n');
+            //bluetoothSerial.print("S10\n");
         }
     }
 }
@@ -149,7 +163,7 @@ void sendMessage(float theta, float phi)
 
     // send the string over BT char by char
     for (int i = 0; i < data.length(); i++) {
-    sender.write(data.charAt(i));
+    //sender.write(data.charAt(i));
     // Serial.print("Data sent: ");
     // Serial.println(data.charAt(i));
     }
@@ -157,13 +171,22 @@ void sendMessage(float theta, float phi)
 
 void loop()
 {
+    //myDFPlayer.play(1);  //Play the first mp3
+    myDFPlayer.playMp3Folder(1);
+    delay(2000);
+    myDFPlayer.playMp3Folder(2);
+    delay(2000);
+    myDFPlayer.playMp3Folder(3);
+    delay(2000);
+    
+
     if (startUp)
     {
         delay(500);
-        _imu.calibrate();
+        //_imu.calibrate();
         delay(500);
     }
-
+    /*
     checkLockInput();
     checkSpeedInput();
     checkFireInput();
@@ -180,7 +203,7 @@ void loop()
             if(val<=10) {
                 int diff = val*10 - currSpeed;
                 currSpeed = val*10;
-                audioSerial.print(String(currSpeed/10) + '\n');
+                //audioSerial.print(String(currSpeed/10) + '\n');
                 bluetoothSerial.print("S" + String(diff) + '\n');
             }
             else {
@@ -206,12 +229,13 @@ void loop()
     // Do not send IMU data if lock is enabled
     if(!isLocked)
     {   
-        float theta = _imu.getTheta();
-        float phi = _imu.getPhi();
+        //float theta = _imu.getTheta();
+        //float phi = _imu.getPhi();
         //sendMessage function
 
-        Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
+        //Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
     }
+    */
 
     startUp = false;
     delay(10);
