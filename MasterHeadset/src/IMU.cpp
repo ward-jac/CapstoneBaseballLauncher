@@ -1,3 +1,5 @@
+// TODO: edit for BNO085
+
 #include <Wire.h>
 #include <utility/imumaths.h>
 #include <Adafruit_Sensor.h>
@@ -11,7 +13,6 @@ IMU::IMU(int imuAddress) {
   _imuAddress = imuAddress;
   euler_shift_theta = 0.0;
   euler_shift_phi = 0.0;
-  updateCount = 0;
   myIMU = Adafruit_BNO055(_imuAddress);
 }
 

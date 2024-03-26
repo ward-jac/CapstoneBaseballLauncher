@@ -1,3 +1,5 @@
+// TODO: edit for BNO085
+
 #ifndef IMU_h
 #define IMU_h
 #include <Wire.h>
@@ -17,7 +19,6 @@ private:
 	int _imuAddress;
     float euler_shift_theta;
     float euler_shift_phi;
-    int updateCount;
     Adafruit_BNO055 myIMU;
 };
 #endif
