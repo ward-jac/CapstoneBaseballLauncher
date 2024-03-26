@@ -59,61 +59,77 @@ int sensitivityMode = 0;
 int sensitivity[] = { 7, 15 };
 
 // the microlight switches
-struct microlight_t speedUp = { false, 0, 0, 0 };
-struct microlight_t speedDown = { false, 0, 0, 0 };
-struct microlight_t lock_and_calibrate = { false, 0, 0, 0 };
-struct microlight_t fire_and_power = { false, 0, 0, 0 };
-struct microlight_t switches[] = {speedUp, speedDown, lock_and_calibrate, fire_and_power};
+struct microlight_t speedUp = { false, 2, 0, 0 };
+struct microlight_t speedDown = { false, 3, 0, 0 };
+struct microlight_t lock_and_calibrate = { false, 4, 0, 0 };
+struct microlight_t fire_and_power = { false, 5, 0, 0 };
+struct microlight_t* switchPointers[] = { &speedUp, &speedDown, &lock_and_calibrate, &fire_and_power };
 
-// the time required to register a held button
-long holdTime = 2000;
+// the min time required to register a held switch
+long holdTime = 3000;
+
+// the max time to register a clicked switch
+long clickTime = 1000;
 
 // updates the structs when a microlight switch is clicked
-void clicked(microlight_t* microlight) {
+void switchClicked(microlight_t* microlight) {
   microlight->prevClicked = true;
   microlight->clickedTime = millis();
 }
 
 // updates the structs when a microlight switch is held
-void held(microlight_t* microlight) {
+void switchHeld(microlight_t* microlight) {
   microlight->elapsedTime = millis() - microlight->clickedTime;
 }
 
 // updates the structs when a microlight switch is released
-void released(microlight_t* microlight) {
+void switchReleased(microlight_t* microlight) {
   microlight->prevClicked = false;
   microlight->elapsedTime = millis() - microlight->clickedTime;
 }
 
 // resets a microlight switch to its default state
-void reset(microlight_t* microlight) {
+void resetSwitch(microlight_t* microlight) {
   microlight->prevClicked = false;
   microlight->clickedTime = 0;
   microlight->elapsedTime = 0;
 }
 
+// returns if a switch was successfully clicked (released in a short time)
+bool validClick(microlight_t* microlight) {
+  return (!microlight->prevClicked && (microlight->elapsedTime > 0 && microlight->elapsedTime < clickTime));
+}
+
+// returns if a switch was successfully held (released in a long time or not at all)
+bool validHold(microlight_t* microlight) {
+  return (microlight->elapsedTime > holdTime);
+}
+
 // reads and updates the current state of each microlight switch
 void readSwitches() {
-  for (int i = 0; i < sizeof(switches); i++) {
-    // the current switch we are evaluating and its reading
-    struct microlight_t m = switches[i];
-    bool reading = digitalRead(m.pin);
+  for (int i = 0; i < 1; i++) {
+    // the reading of the current switch we are evaluating
+    int reading = digitalRead(switchPointers[i]->pin);
 
     // the switch was just clicked
-    if (reading == LOW && !m.prevClicked) {
-      clicked(&m);
+    if (reading == LOW && !switchPointers[i]->prevClicked) {
+      switchClicked(switchPointers[i]);
+      // Serial.println("CLICKED");
     }
     // the switch is currently held down
-    else if (reading == LOW && m.prevClicked) {
-      held(&m);
+    else if (reading == LOW && switchPointers[i]->prevClicked) {
+      switchHeld(switchPointers[i]);
+      // Serial.println("HELD");
     }
     // the switch was just released
-    else if (reading == HIGH && m.prevClicked) {
-      released(&m);
+    else if (reading == HIGH && switchPointers[i]->prevClicked) {
+      switchReleased(switchPointers[i]);
+      // Serial.println("RELEASED");
     }
     // the switch is off
-    else {
-    
+    else if (reading == HIGH && !switchPointers[i]->prevClicked) {
+      resetSwitch(switchPointers[i]);
+      // Serial.println("OFF");
     }
   }
 }
@@ -223,6 +239,11 @@ void setup() {
   setReports(reportType, reportIntervalUs);
   Serial.println("Reading events");
 
+  // initialize microlight switch pins
+  for (int i = 0; i < 1; i++) {
+    pinMode(switchPointers[i]->pin, INPUT_PULLUP);
+  }
+
   // crucial
   delay(2000);
 }
@@ -244,15 +265,54 @@ void loop() {
     }
   }
 
+  // check for click/hold/release
+  readSwitches();
+
+  // the speed up switch was released quickly
+  if (validClick(&speedUp)) {
+    // TODO: speed up
+    // Serial.println("Speed up clicked");
+  }
+
+  // the speed down switch was released quickly
+  if (validClick(&speedDown)) {
+    // TODO: speed down
+    // Serial.println("Speed down clicked");
+  }
+
+  // the lock and calibrate switch was released quickly
+  if (validClick(&lock_and_calibrate)) {
+    // TODO: lock the launcher
+    //Serial.println("Lock/calibrate clicked");
+  }
+  // the lock and calibrate switch was held
+  else if (validHold(&lock_and_calibrate)) {
+    // calibrate the IMU
+    // updateShifts();
+    // Serial.println("Lock/calibrate held");
+  }
+
+  // the fire and power switch was released quickly
+  if (validClick(&fire_and_power)) {
+    // TODO: fire the launcher
+    // Serial.println("Fire/power clicked");
+  }
+  // the fire and power switch was held
+  else if (validHold(&fire_and_power)) {
+    // TODO: power the launcher on/off
+    // Serial.println("Fire/power held");
+  }
+
   // convert the euler angles to theta and phi
   theta = getShiftedTheta(theta);
   phi = getShiftedPhi(phi);
 
+  Serial.println(theta);
+  Serial.println(phi);
+  Serial.println("");
+
   // send the angles over BT
   sendInfo();
-
-  // check for click/hold/release
-  readSwitches();
 
   // delay for the designated sample rate delay
   delay(SAMPLERATE_DELAY_MS);
