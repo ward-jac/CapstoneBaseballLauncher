@@ -11,14 +11,12 @@ const int IMU_ADDRESS = 55;
 IMU _imu(IMU_ADDRESS);
 AltSoftSerial sender;
 
-// Audio
-#define FPSerial Serial2
-DFRobotDFPlayerMini myDFPlayer;
+#define DFSerial Serial2
+#define SpeechSerial Serial1
 
-// Speech
-const int SP_RX_PIN = 17;
-const int SP_TX_PIN = 16;
-SoftwareSerial speechSerial(SP_RX_PIN, SP_TX_PIN);
+String speechMsg = "";
+DFRobotDFPlayerMini myDFPlayer;
+bool DFPlayerActive;
 
 // Bluetooth
 //  Arduino 48 (Mega) RX -> BT TX no need voltage divider
@@ -52,20 +50,96 @@ void setup()
     //bluetoothSerial.begin(9600);
     //_imu.begin();
 
-    Serial.begin(115200);
+    Serial.begin(19200);
+    SpeechSerial.begin(9600);
     
-    FPSerial.begin(9600);
-    if (!myDFPlayer.begin(FPSerial, /*isACK = */true, /*doReset = */true)) {  //Use serial to communicate with mp3.
-      Serial.println(F("Unable to begin:"));
-      Serial.println(F("1.Please recheck the connection!"));
-      Serial.println(F("2.Please insert the SD card!"));
+    /*
+     (val): Control name
+    (1-10): Speed control - sets speed to val*10 speed
+        11: Lock Launcher
+        12: Unlock Launcher
+        13: Sensor Calibrated
+        14: Face Forward to Calibrate
+        15: Fire
+    */
+    DFSerial.begin(9600);
+    if (!myDFPlayer.begin(DFSerial, /*isACK = */true, /*doReset = */true)) {  //Use serial to communicate with mp3.
+      Serial.println("No Connection to DFPlayer");
+      DFPlayerActive = false;
     } else {
+      DFPlayerActive = true;
       Serial.println(F("Connection Succesfull"));
+      myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
+      myDFPlayer.volume(70);
+      myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
+      myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
     }
-    myDFPlayer.setTimeOut(500); //Set serial communictaion time out 500ms
-    myDFPlayer.volume(70);
-    myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
-    myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+}
+
+void loop()
+{
+    if (startUp)
+    {
+        delay(500);
+        //_imu.calibrate();
+        delay(500);
+    }
+    //checkLockInput();
+    //checkSpeedInput();
+    //checkFireInput();
+    while(SpeechSerial.available()>0) {
+        char c = SpeechSerial.read();
+        speechMsg += c;
+        if(c=='\n') {
+            speechMsg = speechMsg.substring(0,speechMsg.length()-1);
+            Serial.println(speechMsg);
+            int val = speechMsg.toInt();
+            speechMsg = "";
+
+            // speed control
+            if(val<=10) {
+                int diff = val*10 - currSpeed;
+                currSpeed = val*10;
+                if(DFPlayerActive) {
+                  myDFPlayer.playMp3Folder(val);
+                  bluetoothSerial.print("S" + String(diff) + '\n');
+                }
+            }
+            else {
+              /*
+                switch(val) {
+                    // lock
+                    case 11:
+
+                    // unlock
+                    case 12:
+                    
+                    // Calibrate
+                    case 13:
+
+                    // Fire
+                    case 14:
+                
+                }
+                */
+              }
+          }
+    }
+
+
+
+    // Do not send IMU data if lock is enabled
+    if(!isLocked)
+    {   
+        //float theta = _imu.getTheta();
+        //float phi = _imu.getPhi();
+        //sendMessage function
+
+        //Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
+    }
+
+    startUp = false;
+    delay(10);
 }
 
 // press toggles lock on/off
@@ -80,32 +154,32 @@ char checkLockInput()
     }
 
     // check if input is held for holdTime, lock launcher for calibration
-    if (lockInputActive && millis() - lockStartTime > holdTime)
+    else if (lockInputActive && millis() - lockStartTime > holdTime)
     {
         isLocked = true;
         inCalibration = true;
-        //audioSerial.print("14\n");
+        myDFPlayer.playMp3Folder(14);
     }
 
     // check if input is released
-    if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockInputActive)
+    else if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockInputActive)
     {
         lockInputActive = false;
         if (inCalibration)
         {
-            //_imu.calibrate();
+            _imu.calibrate();
             isLocked = false;
             inCalibration = false;
-            //audioSerial.print("13\n");
+            myDFPlayer.playMp3Folder(13);
         }
         else
         {
             isLocked = !isLocked;
             if(!isLocked){
-                //audioSerial.print("12\n");
+                myDFPlayer.playMp3Folder(12);
             }
             else {
-                //audioSerial.print("11\n");
+                myDFPlayer.playMp3Folder(11);
             }
         }
     }
@@ -136,7 +210,7 @@ char checkSpeedInput()
             else {
                 currSpeed+=10;
             }
-            //audioSerial.print(String(currSpeed/10) + '\n');
+            myDFPlayer.playMp3Folder(currSpeed/10);
             //bluetoothSerial.print("S10\n");
         }
     }
@@ -167,76 +241,4 @@ void sendMessage(float theta, float phi)
     // Serial.print("Data sent: ");
     // Serial.println(data.charAt(i));
     }
-}
-
-void loop()
-{
-    //myDFPlayer.play(1);  //Play the first mp3
-    myDFPlayer.playMp3Folder(1);
-    delay(2000);
-    myDFPlayer.playMp3Folder(2);
-    delay(2000);
-    myDFPlayer.playMp3Folder(3);
-    delay(2000);
-    
-
-    if (startUp)
-    {
-        delay(500);
-        //_imu.calibrate();
-        delay(500);
-    }
-    /*
-    checkLockInput();
-    checkSpeedInput();
-    checkFireInput();
-
-    String msg = "";
-    while(speechSerial.available() > 0) {
-        char c = speechSerial.read();
-        msg += c;
-        if(c=='\n') {
-            msg = msg.substring(0,msg.length()-1);
-            int val = msg.toInt();
-            msg = "";
-            // speed control
-            if(val<=10) {
-                int diff = val*10 - currSpeed;
-                currSpeed = val*10;
-                //audioSerial.print(String(currSpeed/10) + '\n');
-                bluetoothSerial.print("S" + String(diff) + '\n');
-            }
-            else {
-                switch(val) {
-                    // lock
-                    case 11:
-
-                    // unlock
-                    case 12:
-                    
-                    // Calibrate
-                    case 13:
-
-                    // Fire
-                    case 14:
-                }
-            }
-        }
-    }
-
-
-
-    // Do not send IMU data if lock is enabled
-    if(!isLocked)
-    {   
-        //float theta = _imu.getTheta();
-        //float phi = _imu.getPhi();
-        //sendMessage function
-
-        //Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-    }
-    */
-
-    startUp = false;
-    delay(10);
 }

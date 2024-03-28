@@ -81,49 +81,66 @@
 #include <LED_Control.h>
 
 // The DSpotter License Data.
-#include "CybLicense_1708562950.h"
+#include "CybLicense_1711659420.h"
 #define DSPOTTER_LICENSE g_lpdwLicense
 
 // For NANO_RP2040_CONNECT
 #if defined(TARGET_NANO_RP2040_CONNECT)
-#include "Model_1708562950.h"             // The packed level one model file.
+#include "Model_1711659420.h"             // The packed level one model file.
 #endif
 #define DSPOTTER_MODEL g_lpdwModel
 
 // The VR engine object. Only can exist one, otherwise not worked.
 static DSpotterSDKHL g_oDSpotterSDKHL;
 
-// Communication to main board
-const int RX_PIN = 0;
-const int TX_PIN = 1;
-SoftwareSerial speechSerial(RX_PIN, TX_PIN);
-Serial.begin(19200);
+// IMU
+#include <Arduino_LSM6DS3.h>
+float Gx, Gy, Gz;
 
 // Callback function for VR engine
 void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
-{
-  if (nFlag==DSpotterSDKHL::InitSuccess)
+{ 
+  if (nFlag==DSpotterSDKHL::GetResult)
   {
-  }
-  else if (nFlag==DSpotterSDKHL::GetResult)
-  {
-      if(nID==10000) {
-        Serial.write("1\n");
+      /*
+      10001	Ten
+      10002	Twenty
+      10003	Thirty
+      10004	Forty
+      10005	Fifty
+      10006	Sixty
+      10007	Seventy
+      10008	Eighty
+      10009	Ninety
+      10010	Hundred
+      10011	Calibrate
+      10012	Fire
+      10013	Lock
+      10014	Unlock
+      10015	Cancel
+      10016	Mode One
+      10017	Mode Two
+      10018	Sense High
+      10019	Sense Low
+      */
+      LED_RGB_Red();
+      if(nID!=100) {
+        int num = nID-10000;
+        String msg = String(num) + "\n";
+        //Serial.println(msg);
+        Serial1.print(msg);
       }
-      else if(nID==10001) {
-        Serial.write("2\n");
-      }
   }
+
   else if (nFlag==DSpotterSDKHL::ChangeStage)
   {
       switch(nID)
       {
           case DSpotterSDKHL::TriggerStage:
-            LED_RGB_Off();
-            LED_BUILTIN_Off();
+            LED_RGB_Green();
             break;
           case DSpotterSDKHL::CommandStage:
-            LED_BUILTIN_On();
+            LED_RGB_Blue();
             break;
           default:
             break;
@@ -131,11 +148,6 @@ void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
   }
   else if (nFlag==DSpotterSDKHL::GetError)
   {
-      if (nID == DSpotterSDKHL::LicenseFailed)
-      {
-          //Serial.print("DSpotter license failed! The serial number of your device is ");
-          //Serial.println(DSpotterSDKHL::GetSerialNumber());
-      }
       g_oDSpotterSDKHL.Release();
       while(1);//hang loop
   }
@@ -147,13 +159,10 @@ void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
 
 void setup()
 {
-  // Init LED control
   LED_Init_All();
 
-  // Init Serial output for show debug info
-  Serial.begin(9600);
-  while(!Serial);
-  DSpotterSDKHL::ShowDebugInfo(true);
+  Serial1.begin(9600);
+  IMU.begin();
 
   // Init VR engine & Audio
   if (g_oDSpotterSDKHL.Init(DSPOTTER_LICENSE, sizeof(DSPOTTER_LICENSE), DSPOTTER_MODEL, VRCallback) != DSpotterSDKHL::Success)
@@ -164,5 +173,19 @@ void loop()
 {
   // Do VR
   g_oDSpotterSDKHL.DoVR();
+
+  /*
+  if (IMU.gyroscopeAvailable()) {
+    delay(500);
+    IMU.readGyroscope(Gx, Gy, Gz);
+    
+    Serial1.print(Gx);
+    Serial1.print(" ");
+    Serial1.print(Gy);
+    Serial1.print(" ");
+    Serial1.print(Gz);
+    Serial1.print(" \n");
+  }
+  */
 }
 
