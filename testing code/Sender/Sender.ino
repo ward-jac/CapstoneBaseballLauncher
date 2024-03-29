@@ -69,10 +69,12 @@ int holdTime = 3000;
 // the max time to register a clicked switch
 int clickTime = 1000;
 
+// the launcher is initially locked
+bool locked = true;
+
 // to keep track of the switch info to send to the launcher
-int speedUp = 0;
-int speedDown = 0;
-int fire = 0;
+int speedChange;
+int fire;
 
 // updates the structs when a microlight switch is clicked
 void switchClicked(microlight_t* microlight) {
@@ -207,7 +209,7 @@ void updateAngles() {
 
 // generates a string of data describing the state of the switches
 String generateSwitchData() {
-  return String(speedUp) + String(speedDown) + String(fire);
+  return String(speedChange) + String(fire);
 }
 
 // sends information over BT
@@ -246,6 +248,7 @@ void setup() {
     Serial.println("Failed to find BNO08x chip");
     delay(10);
   }
+
   Serial.println("BNO08x Found!");
   setReports(reportType, reportIntervalUs);
   Serial.println("Reading events");
@@ -279,11 +282,37 @@ void loop() {
   // check for click/hold/release
   readSwitches();
 
-  // logic for switches
+  // if only the red switch is clicked, change the speed
+  if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+    // change the speed
+  }
+  // if only the red switch is held, fire the launcher
+  else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+    // fire the launcher and reset the switch
+    fire = 1;
 
-  // convert the euler angles to theta and phi
-  theta = getShiftedTheta(theta);
-  phi = getShiftedPhi(phi);
+    // maybe
+    resetSwitch(&redSwitch);
+  }
+  // if only the blue switch is clicked, toggle lock
+  else if (validClick(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
+    locked = !locked;
+  }
+  // if only the blue switch is held, calibrate the IMU
+  else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
+    updateShifts();
+  }
+
+  // set theta and phi to 0 if the launcher is locked
+  if (locked) {
+    theta = 0;
+    phi = 0;
+  } 
+  // otherwise, calculate the shifted theta and phi angles
+  else {
+    theta = getShiftedTheta(theta);
+    phi = getShiftedPhi(phi);
+  }
 
   Serial.println(theta);
   Serial.println(phi);

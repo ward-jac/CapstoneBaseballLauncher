@@ -66,9 +66,8 @@ int sensitivityMode = 1;
 int sensitivity[] = { 7, 15 };
 
 // to keep track of the switch info to send to the launcher
-int speedUp = 0;
-int speedDown = 0;
-int fire = 0;
+int speedChange;
+int fire;
 
 // the minimum time between each fire
 long fireCooldown = 5000;
@@ -186,9 +185,8 @@ void updateStateVars(String str) {
   int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
   String stateVars = str.substring(space2 + 1, str.indexOf(etx));
 
-  speedUp = int(stateVars.charAt(0));
-  speedDown = int(stateVars.charAt(1));
-  fire = int(stateVars.charAt(2));
+  speedChange = int(stateVars.charAt(0));
+  fire = int(stateVars.charAt(1));
 }
 
 // safely read and process a character from BT
@@ -277,17 +275,10 @@ void loop() {
     moveServo(theta_angle);
     moveAct(phi_angle);
 
-    if (speedDown) {
-      // TODO: speed down
-    }
-    else if (speedUp) {
-      // TODO: speed up
-    }
-
     if (fire && ((millis() - lastFireTime) > fireCooldown)) {
       // TODO: fire
 
-      timeSinceFire = millis();
+      lastFireTime = millis();
     }
 
     // print what is received from BT
