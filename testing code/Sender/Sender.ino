@@ -11,7 +11,7 @@ sh2_SensorValue_t sensorValue;
 
 // top frequency is about 250Hz but this report is more accurate
 sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
-long reportIntervalUs = 5000;
+int reportIntervalUs = 5000;
 
 // euler angles
 struct euler_t {
@@ -59,17 +59,20 @@ int sensitivityMode = 0;
 int sensitivity[] = { 7, 15 };
 
 // the microlight switches
-struct microlight_t speedUp = { false, 2, 0, 0 };
-struct microlight_t speedDown = { false, 3, 0, 0 };
-struct microlight_t lock_and_calibrate = { false, 4, 0, 0 };
-struct microlight_t fire_and_power = { false, 5, 0, 0 };
-struct microlight_t* switchPointers[] = { &speedUp, &speedDown, &lock_and_calibrate, &fire_and_power };
+struct microlight_t redSwitch = { false, 2, 0, 0 };
+struct microlight_t blueSwitch = { false, 3, 0, 0 };
+struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
 // the min time required to register a held switch
-long holdTime = 3000;
+int holdTime = 3000;
 
 // the max time to register a clicked switch
-long clickTime = 1000;
+int clickTime = 1000;
+
+// to keep track of the switch info to send to the launcher
+int speedUp = 0;
+int speedDown = 0;
+int fire = 0;
 
 // updates the structs when a microlight switch is clicked
 void switchClicked(microlight_t* microlight) {
@@ -202,6 +205,11 @@ void updateAngles() {
   phi = ypr.pitch;
 }
 
+// generates a string of data describing the state of the switches
+String generateSwitchData() {
+  return String(speedUp) + String(speedDown) + String(fire);
+}
+
 // sends information over BT
 void sendInfo() {
   // start of text char
@@ -210,14 +218,17 @@ void sendInfo() {
   // end of text char
   char etx = 3;
 
+  // for the microlight switches
+  String switchData = generateSwitchData();
+
   // create the data string to send over BT
-  String data = stx + String(theta, 1) + " " + String(phi, 1) + etx;
+  String allData = stx + String(theta, 1) + " " + String(phi, 1) + " " + switchData + etx;
 
   // send the string over BT char by char
-  for (int i = 0; i < data.length(); i++) {
-    sender.write(data.charAt(i));
+  for (int i = 0; i < allData.length(); i++) {
+    sender.write(allData.charAt(i));
     // Serial.print("Data sent: ");
-    // Serial.println(data.charAt(i));
+    // Serial.println(allData.charAt(i));
   }
 }
 
@@ -268,40 +279,7 @@ void loop() {
   // check for click/hold/release
   readSwitches();
 
-  // the speed up switch was released quickly
-  if (validClick(&speedUp)) {
-    // TODO: speed up
-    // Serial.println("Speed up clicked");
-  }
-
-  // the speed down switch was released quickly
-  if (validClick(&speedDown)) {
-    // TODO: speed down
-    // Serial.println("Speed down clicked");
-  }
-
-  // the lock and calibrate switch was released quickly
-  if (validClick(&lock_and_calibrate)) {
-    // TODO: lock the launcher
-    //Serial.println("Lock/calibrate clicked");
-  }
-  // the lock and calibrate switch was held
-  else if (validHold(&lock_and_calibrate)) {
-    // calibrate the IMU
-    // updateShifts();
-    // Serial.println("Lock/calibrate held");
-  }
-
-  // the fire and power switch was released quickly
-  if (validClick(&fire_and_power)) {
-    // TODO: fire the launcher
-    // Serial.println("Fire/power clicked");
-  }
-  // the fire and power switch was held
-  else if (validHold(&fire_and_power)) {
-    // TODO: power the launcher on/off
-    // Serial.println("Fire/power held");
-  }
+  // logic for switches
 
   // convert the euler angles to theta and phi
   theta = getShiftedTheta(theta);

@@ -65,6 +65,17 @@ int sensitivityMode = 1;
 // the minimum angle needed to activate
 int sensitivity[] = { 7, 15 };
 
+// to keep track of the switch info to send to the launcher
+int speedUp = 0;
+int speedDown = 0;
+int fire = 0;
+
+// the minimum time between each fire
+long fireCooldown = 5000;
+
+// the time when the launcher was fired last
+long lastFireTime = 0;
+
 // returns whether or not a given linear actuator movement is valid
 bool validMovement(int dir, int pot) {
   return (dir == 0) || ((dir == 1) && (pot < maxAnalogReading)) || ((dir == -1) && (pot > minAnalogReading));
@@ -158,13 +169,26 @@ void moveServo(float theta) {
 }
 
 // obtain the first number in the string (theta)
-float stringToTheta(String str) {
+float dataToTheta(String str) {
   return str.substring(0, str.indexOf(" ")).toFloat();
 }
 
 // obtain the second number in the string (phi)
-float stringToPhi(String str) {
-  return str.substring(str.indexOf(" ") + 1, str.indexOf(etx)).toFloat();
+float dataToPhi(String str) {
+  int space1 = str.indexOf(" ");
+  int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
+  return str.substring(space1 + 1, space2).toFloat();
+}
+
+// update the state variables for speed up, speed down, and fire
+void updateStateVars(String str) {
+  int space1 = str.indexOf(" ");
+  int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
+  String stateVars = str.substring(space2 + 1, str.indexOf(etx));
+
+  speedUp = int(stateVars.charAt(0));
+  speedDown = int(stateVars.charAt(1));
+  fire = int(stateVars.charAt(2));
 }
 
 // safely read and process a character from BT
@@ -242,22 +266,36 @@ void loop() {
   // check to see if the entire string was received (last char is etx)
   if (c == etx) {
     // update theta and phi and reset the data string
-    theta_angle = stringToTheta(data);
-    phi_angle = stringToPhi(data);
+    theta_angle = dataToTheta(data);
+    phi_angle = dataToPhi(data);
+    data = "";
 
-    // move the servo and linear actuator if necessary
+    // update the state variables for speed up, speed down, and fire
+    updateStateVars(data);
+
+    // move the servo and linear actuator
     moveServo(theta_angle);
     moveAct(phi_angle);
 
-    // reset the data string
-    data = "";
+    if (speedDown) {
+      // TODO: speed down
+    }
+    else if (speedUp) {
+      // TODO: speed up
+    }
 
+    if (fire && ((millis() - lastFireTime) > fireCooldown)) {
+      // TODO: fire
+
+      timeSinceFire = millis();
+    }
+
+    // print what is received from BT
     for (int i = 0; i < data.length(); i++) {
       Serial.print(data.charAt(i));
     }
 
     Serial.println("");
-
     Serial.println("Theta: " + String(theta_angle));
     Serial.println("Phi: " + String(phi_angle));
   }
