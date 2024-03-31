@@ -1,14 +1,18 @@
 #include <Arduino.h>
-#include <ServoTimer2.h>
+#include <Servo.h>
 #include "../include/Launcher.h"
 
-#define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0));
-ServoTimer2 myServo;
-
-// the maximum values of theta and phi
-const int maxAngle = 30;
-const int servoPin = 5;
+Servo myServo;
+const int servoPin = 9;
 int servoPos = 0;
+
+const int speed3MinAngle = 30;
+const int speed2MinAngle = 20;
+const int speed1MinAngle = 10;
+const int speed3 = 1;
+const int speed2 = 100;
+const int speed1 = 300;
+int speed = 0;
 
 // Arduino pins for linear actuator (can't use 10 with AltSoftSerial)
 const int act_pin = A0;             // linear actuator potentiometer pin 54
@@ -78,7 +82,6 @@ void Launcher::moveAct(float phi) {
     // constrain phi within the max angles
     if (abs(phi) > maxAngle)
     {
-        phi = sgn(phi);
         phi = phi * maxAngle;
     }
 
@@ -102,47 +105,28 @@ void Launcher::moveAct(float phi) {
     }
 }
 
-void Launcher::moveServo(float theta) {
-  int sensLevel1 = 2;
-  int sensLevel2 = 5;
-  int sensLevel3 = 10;
-  int sensLevel4 = 20;
-
-  if(servoPos<45 && servoPos>-45) {
-    if(theta>40) {
-      servoPos = servoPos + sensLevel4;
-      move.write(servoPos);
-    }
-    else if(theta>30) {
-      servoPos = servoPos + sensLevel3;
-      myServo.write(servoPos);
-    }
-    else if(theta>20) {
-      servoPos = servoPos + sensLevel2;
-      myServo.write(servoPos);
-    }
-    else if(theta>10) {
-      servoPos = servoPos + sensLevel1;
-      myServo.write(servoPos);
-    }
-    else if(theta<-10) {
-      servoPos = servoPos - sensLevel1;
-      myServo.write(servoPos);
-    }
-    else if(theta<-20) {
-      servoPos = servoPos - sensLevel2;
-      myServo.write(servoPos);
-    }
-    else if(theta<-30) {
-      servoPos = servoPos - sensLevel3;
-      myServo.write(servoPos);
-    }
-    else if(theta<-40) {
-      servoPos = servoPos - sensLevel4;
-      myServo.write(servoPos);
-    }
+void Launcher::updateServo(float theta) {
+  if(abs(theta)>speed3MinAngle) {
+    speed = speed3;
   }
-  delay(80);
+  else if(abs(theta)>speed2MinAngle) {
+    speed = speed2;
+  }
+  else if(abs(theta)>speed1MinAngle) {
+    speed = speed1;
+  }
+  else {
+    speed = 0;
+  }
+  
+  if(speed!=0 && millis()%speed==0) {
+      if(theta>0) {
+        servoPos+=1;
+      } else {
+        servoPos-=1;
+      }
+      myServo.write(servoPos);
+  }
 }
 
 void Launcher::setSensitivity(char c) {

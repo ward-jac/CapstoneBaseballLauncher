@@ -1,15 +1,9 @@
-#include <AltSoftSerial.h>
-#include <SoftwareSerial.h>
+//#include <AltSoftSerial.h>
 #include <DFRobotDFPlayerMini.h>
 #include <avr/io.h>
 #include <stdlib.h>
 #include <Arduino.h>
-#include "include/IMU.h"
-
-// IMU
-const int IMU_ADDRESS = 55;
-IMU _imu(IMU_ADDRESS);
-AltSoftSerial sender;
+#include <Servo.h>
 
 #define BTSerial Serial3
 #define DFSerial Serial2
@@ -45,12 +39,31 @@ boolean inCalibration = false;
 const int AUTOLOAD_INPUT_PIN = 5;
 boolean startUp = true;
 
+
+
+Servo myServo;
+const int maxAngle = 30;
+const int servoPin = 9;
+int servoPos = 0;
+
+const int sensLevel1 = 2;
+const int sensLevel2 = 5;
+const int sensLevel3 = 10;
+const int sensLevel4 = 20;
+
+const int minAngle1 = 10;
+const int minAngle2 = 20;
+const int minAngle3 = 30;
+const int minAngle4 = 40;
+
 void setup()
 {
+    //myServo.writeMicroseconds(0);
+    myServo.attach(servoPin);
+
     Serial.begin(19200);
     SpeechSerial.begin(9600);
     BTSerial.begin(9600);
-    _imu.begin();
     
     /*
      (val): Control name
@@ -61,7 +74,7 @@ void setup()
         14: Face Forward to Calibrate
         15: Fire
     */
-    DFSerial.begin(9600);
+    //DFSerial.begin(9600);
     if (!myDFPlayer.begin(DFSerial, /*isACK = */true, /*doReset = */true)) {  //Use serial to communicate with mp3.
       Serial.println("No Connection to DFPlayer");
       DFPlayerActive = false;
@@ -78,67 +91,79 @@ void setup()
 void loop()
 {
     if (startUp)
-    {
-        delay(500);
-        //_imu.calibrate();
-        delay(500);
+    { 
+        myServo.write(180);
+        delay(2000);
+        myServo.write(90);
+        delay(2000);
+        myServo.write(100);
+
+
     }
-    //checkLockInput();
-    //checkSpeedInput();
-    //checkFireInput();
-    while(SpeechSerial.available()>0) {
-        char c = SpeechSerial.read();
-        speechMsg += c;
-        if(c=='\n') {
-            speechMsg = speechMsg.substring(0,speechMsg.length()-1);
-            Serial.println(speechMsg);
-            int val = speechMsg.toInt();
-            speechMsg = "";
-
-            // speed control
-            if(val<=10) {
-                int diff = val*10 - currSpeed;
-                currSpeed = val*10;
-                if(DFPlayerActive) {
-                  myDFPlayer.playMp3Folder(val);
-                  BTSerial.print("S" + String(diff) + '\n');
-                }
-            }
-            else {
-              /*
-                switch(val) {
-                    // lock
-                    case 11:
-
-                    // unlock
-                    case 12:
-                    
-                    // Calibrate
-                    case 13:
-
-                    // Fire
-                    case 14:
-                
-                }
-                */
-              }
-          }
-    }
-
-
-
-    // Do not send IMU data if lock is enabled
-    if(!isLocked)
-    {   
-        //float theta = _imu.getTheta();
-        //float phi = _imu.getPhi();
-        //sendMessage function
-
-        //Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-    }
-
     startUp = false;
     delay(10);
+}
+
+void moveServo(float theta) {
+  int sensLevel1 = 2;
+  int sensLevel2 = 5;
+  int sensLevel3 = 10;
+  int sensLevel4 = 20;
+  Serial.println(servoPos);
+
+  while
+
+  // use this
+  for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(1);                       // waits 15 ms for the servo to reach the position
+    if()
+  }
+  for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+    myservo.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(1000);                       // waits 15 ms for the servo to reach the position
+  }
+
+  if(servoPos<45 && servoPos>-45) {
+    if(theta>minAngle4) {
+      servoPos = servoPos + sensLevel4;
+      myServo.write(servoPos);
+    }
+    else if(theta>minAngle3) {
+      servoPos = servoPos + sensLevel3;
+      myServo.write(servoPos);
+    }
+    else if(theta>minAngle2) {
+      servoPos = servoPos + sensLevel2;
+      myServo.write(servoPos);
+    }
+    else if(theta>minAngle1) {
+      servoPos = servoPos + sensLevel1;
+      myServo.write(servoPos);
+    }
+    else if(theta<minAngle1 && theta>-minAngle1) {
+      servoPos = 90;
+      myServo.write(servoPos);
+    }
+    else if(theta<-minAngle1) {
+      servoPos = servoPos - sensLevel1;
+      myServo.write(servoPos);
+    }
+    else if(theta<-minAngle2) {
+      servoPos = servoPos - sensLevel2;
+      myServo.write(servoPos);
+    }
+    else if(theta<-minAngle3) {
+      servoPos = servoPos - sensLevel3;
+      myServo.write(servoPos);
+    }
+    else if(theta<-minAngle4) {
+      servoPos = servoPos - sensLevel4;
+      myServo.write(servoPos);
+    }
+  }
+  delay(80);
 }
 
 // press toggles lock on/off
@@ -166,7 +191,6 @@ char checkLockInput()
         lockInputActive = false;
         if (inCalibration)
         {
-            _imu.calibrate();
             isLocked = false;
             inCalibration = false;
             myDFPlayer.playMp3Folder(13);

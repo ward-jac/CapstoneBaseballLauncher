@@ -9,6 +9,8 @@ const int SPEEDDOWN_PIN = 123;
 AltSoftSerial bluetoothSerial;
 Launcher _launcher;
 
+String btMsg = "";
+
 char speechRecognition() {
 }
 
@@ -29,7 +31,7 @@ void loop() {
   // read PHI THETA values from Master IMU to write to Reciever actuator and servo
   //Serial.println(String(bluetoothSerial.read()));
 
-  float val = bluetoothSerial.parseFloat();
+  //float val = bluetoothSerial.parseFloat();
   if(bluetoothSerial.read()=='\n'){
     // indicated end
   }
@@ -37,8 +39,8 @@ void loop() {
   if(bluetoothSerial.read() =='P') 
   { 
     //Serial.println("Recieved P");
-    float phi = readB();
-    float theta = readB();
+    //float phi = readB();
+    //float theta = readB();
 
     /*
     String str = bluetoothSerial.readString();
@@ -54,9 +56,21 @@ void loop() {
 
   else if(bluetoothSerial.read() =='S')
   {
-    float num = readB();
-    Serial.println("Recieved: " + String(num));
-    addSpeed(num);
+    //float num = readB();
+
+    while(bluetoothSerial.available()>0) {
+        char c = bluetoothSerial.read();
+        btMsg += c;
+        if(c=='\n') {
+            btMsg = btMsg.substring(0,btMsg.length()-1);
+            Serial.println(btMsg);
+            int val = btMsg.toInt();
+            btMsg = "";
+        }
+    }
+
+    //Serial.println("Recieved: " + String(num));
+    //_launcher.addSpeed(num);
   }
 
   else if(bluetoothSerial.read() =='H')

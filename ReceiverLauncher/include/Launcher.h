@@ -5,7 +5,7 @@ class Launcher {
     public:
         Launcher();
         void moveAct(float phi);
-        void moveServo(float theta);
+        void updateServo(float theta);
         void setSensitivity(char c);
 
     private:
