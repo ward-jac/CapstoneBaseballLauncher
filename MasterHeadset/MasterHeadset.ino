@@ -215,12 +215,10 @@ char checkSpeedInput()
     }
 }
 
-char checkFireInput()
-{
-    // check if input is active
-    if (digitalRead(AUTOLOAD_INPUT_PIN) == LOW)
-    {
-    }
+void checkFireInput() {
+  // check if input is active
+  if (digitalRead(AUTOLOAD_INPUT_PIN) == LOW) {
+  }
 }
 
 void sendMessage(float theta, float phi)
@@ -228,11 +226,11 @@ void sendMessage(float theta, float phi)
     // start of text char
     char stx = 2;
 
-    // end of text char
-    char etx = 3;
+  // end of text char
+  char etx = 3;
 
-    // create the data string to send over BT
-    String data = stx + String(theta, 1) + " " + String(phi, 1) + etx;
+  // create the data string to send over BT
+  String data = stx + String(theta, 1) + " " + String(phi, 1) + etx;
 
     // send the string over BT char by char
     for (int i = 0; i < data.length(); i++) {
