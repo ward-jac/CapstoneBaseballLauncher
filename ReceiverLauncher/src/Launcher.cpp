@@ -2,29 +2,10 @@
 #include <Servo.h>
 #include "../include/Launcher.h"
 
-
-#define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0));
-ServoTimer2 myServo;
-
-// the maximum values of theta and phi
-const int maxAngle = 30;
-const int servoPin = 5;
-int servoPos = 0;
-
-const int speed3MinAngle = 30;
-const int speed2MinAngle = 20;
-const int speed1MinAngle = 10;
-const int speed3 = 1;
-const int speed2 = 100;
-const int speed1 = 300;
-int speed = 0;
-
-// Arduino pins for linear actuator (can't use 10 with AltSoftSerial)
 const int act_pin = A0;             // linear actuator potentiometer pin 54
 const int act_RPWM = 11;            // linear actutator RPWM connection
 const int act_LPWM = 12;            // linear actuator LWPM connection
-const int act_RPWM = 11;            // linear actutator RPWM connection
-const int act_LPWM = 12;            // linear actuator LWPM connection
+const int servoPin = 9;             // servo pin
 
 // servo
 Servo myServo;
