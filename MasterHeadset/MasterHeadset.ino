@@ -2,47 +2,267 @@
 #include <avr/io.h>
 #include <stdlib.h>
 #include <Arduino.h>
-#include "include/IMU.h"
 
-// Bluetooth
-//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
-//  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
-// AltSoftSerial bluetoothSerial;
-
-const int SPEED_INPUT_PIN = 7;
-const int LOCK_INPUT_PIN = 6;
-const int IMU_ADDRESS = 55;
-#define BTSerial Serial3
-#define DFSerial Serial2
 #define SpeechSerial Serial1
+#define DFSerial Serial2
+#define BTSerial Serial3
 
-IMU _imu(IMU_ADDRESS);
 DFRobotDFPlayerMini myDFPlayer;
 bool DFPlayerActive;
 
 // Speed Control
-const int launcherProcessingSpeed = 200; // fastest time that launcher can process speed change inputs
+const int launcherProcessingSpeed = 200;  // fastest time that launcher can process speed change inputs
 unsigned int currSpeed = 40;
-unsigned long speedStartTime;
-boolean speedInputActive = false;
-boolean inFire = false;
 
-// Locking
-unsigned long lockStartTime;
-boolean lockInputActive = false;
-boolean isLocked = false;
-boolean inCalibration = false;
+// speech recognition
+String speechMsg = "";
 
-const long holdTime = 2000; // button hold down time
-String speechMsg = "";      // speech recognition
+// required for IMU calculations
+#include <Adafruit_BNO08x.h>
+
+// for I2C or UART
+#define BNO08X_RESET -1
+
+// the sample rate delay and IMU
+#define SAMPLERATE_DELAY_MS (250)
+Adafruit_BNO08x bno08x(BNO08X_RESET);
+sh2_SensorValue_t sensorValue;
+
+// top frequency is about 250Hz but this report is more accurate
+sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
+int reportIntervalUs = 5000;
+
+// euler angles
+struct euler_t {
+  float yaw;
+  float pitch;
+  float roll;
+} ypr;
+
+// for microlight switches
+struct microlight_t {
+  bool prevClicked;
+  int pin;
+  long clickedTime;
+  long elapsedTime;
+};
+
+// the curent angles at the time of calibration
+float shift_theta = 0.0;
+float shift_phi = 0.0;
 boolean startUp = true;
 
-void setup()
-{
-  Serial.begin(19200);
+// angles of interest
+float theta = 0.0;
+float phi = 0.0;
+
+// the max values of theta and phi
+int maxAngle = 30;
+
+// to keep track of the current sensitivity
+// 0 = fine
+// 1 = coarse
+int sensitivityMode = 0;
+
+// the minimum angle needed to activate
+int sensitivity[] = { 7, 15 };
+
+// the microlight switches
+struct microlight_t redSwitch = { false, 8, 0, 0 };
+struct microlight_t blueSwitch = { false, 9, 0, 0 };
+struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
+
+// the min time required to register a held switch
+int holdTime = 3000;
+
+// the max time to register a clicked switch
+int clickTime = 1000;
+
+// the launcher is initially locked
+bool locked = true;
+
+// to keep track of the switch info to send to the launcher
+int speedChange;
+int fire;
+
+// updates the structs when a microlight switch is clicked
+void switchClicked(microlight_t* microlight) {
+  microlight->prevClicked = true;
+  microlight->clickedTime = millis();
+}
+
+// updates the structs when a microlight switch is held
+void switchHeld(microlight_t* microlight) {
+  microlight->elapsedTime = millis() - microlight->clickedTime;
+}
+
+// updates the structs when a microlight switch is released
+void switchReleased(microlight_t* microlight) {
+  microlight->prevClicked = false;
+  microlight->elapsedTime = millis() - microlight->clickedTime;
+}
+
+// resets a microlight switch to its default state
+void resetSwitch(microlight_t* microlight) {
+  microlight->prevClicked = false;
+  microlight->clickedTime = 0;
+  microlight->elapsedTime = 0;
+}
+
+// returns if a switch was successfully clicked (released in a short time)
+bool validClick(microlight_t* microlight) {
+  return (!microlight->prevClicked && (microlight->elapsedTime > 0 && microlight->elapsedTime < clickTime));
+}
+
+// returns if a switch was successfully held (released in a long time or not at all)
+bool validHold(microlight_t* microlight) {
+  return (microlight->elapsedTime > holdTime);
+}
+
+// reads and updates the current state of each microlight switch
+void readSwitches() {
+  for (int i = 0; i < sizeof(switchPointers); i++) {
+    // the reading of the current switch we are evaluating
+    int reading = digitalRead(switchPointers[i]->pin);
+
+    // the switch was just clicked
+    if (reading == LOW && !switchPointers[i]->prevClicked) {
+      switchClicked(switchPointers[i]);
+      // Serial.println("CLICKED");
+    }
+    // the switch is currently held down
+    else if (reading == LOW && switchPointers[i]->prevClicked) {
+      switchHeld(switchPointers[i]);
+      // Serial.println("HELD");
+    }
+    // the switch was just released
+    else if (reading == HIGH && switchPointers[i]->prevClicked) {
+      switchReleased(switchPointers[i]);
+      // Serial.println("RELEASED");
+    }
+    // the switch is off
+    else if (reading == HIGH && !switchPointers[i]->prevClicked) {
+      resetSwitch(switchPointers[i]);
+      // Serial.println("OFF");
+    }
+  }
+}
+
+// for BNO085 reading output
+void setReports(sh2_SensorId_t reportType, long report_interval) {
+  Serial.println("Setting desired reports");
+  if (!bno08x.enableReport(reportType, report_interval)) {
+    Serial.println("Could not enable stabilized remote vector");
+  }
+}
+
+// maps input to output positions
+float mapFloat(long x, long in_min, long in_max, long out_min, long out_max) {
+  return (float)(x - in_min) * (out_max - out_min) / (float)(in_max - in_min) + out_min;
+}
+
+// returns the shifted value of theta after calibration
+float getShiftedTheta(float theta) {
+  float shifted = theta + (-1.0 * shift_theta);
+
+  // to bound the angle from -180 to 180 degrees
+  if (shifted > 180.0) {
+    shifted = shifted - 360.0;
+  } else if (shifted < -180.0) {
+    shifted = shifted + 360.0;
+  }
+
+  // to flip left/right
+  return -shifted;
+}
+
+// returns the shifted value of phi after calibration
+float getShiftedPhi(float phi) {
+  return phi + (-1.0 * shift_phi);
+}
+
+// converts quaternions to euler angles
+void quaternionToEuler(float qr, float qi, float qj, float qk, euler_t* ypr, bool degrees = false) {
+  float sqr = sq(qr);
+  float sqi = sq(qi);
+  float sqj = sq(qj);
+  float sqk = sq(qk);
+
+  ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
+  ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
+  ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
+
+  if (degrees) {
+    ypr->yaw *= RAD_TO_DEG;
+    ypr->pitch *= RAD_TO_DEG;
+    ypr->roll *= RAD_TO_DEG;
+  }
+}
+
+// converts quaternions to euler angles from rotational vector
+void quaternionToEulerRV(sh2_RotationVectorWAcc_t* rotational_vector, euler_t* ypr, bool degrees = false) {
+  quaternionToEuler(rotational_vector->real, rotational_vector->i, rotational_vector->j, rotational_vector->k, ypr, degrees);
+}
+
+// updates the angle shifts
+void updateShifts() {
+  shift_theta = ypr.yaw;
+  shift_phi = ypr.pitch;
+}
+
+// updates the angles themselves
+void updateAngles() {
+  theta = ypr.yaw;
+  phi = ypr.pitch;
+}
+
+// generates a string of data describing the state of the switches
+String generateSwitchData() {
+  return String(speedChange) + String(fire);
+}
+
+// sends information over BT
+void sendInfo() {
+  // start of text char
+  char stx = 2;
+
+  // end of text char
+  char etx = 3;
+
+  // for the microlight switches
+  String switchData = generateSwitchData();
+
+  // create the data string to send over BT
+  String allData = stx + String(theta, 1) + " " + String(phi, 1) + " " + switchData + etx;
+
+  // send the string over BT char by char
+  for (int i = 0; i < allData.length(); i++) {
+    BTSerial.write(allData.charAt(i));
+    // Serial.print("Data sent: ");
+    // Serial.println(allData.charAt(i));
+  }
+}
+
+void setup() {
+  // begin Serial communication
+  Serial.begin(9600);
   SpeechSerial.begin(9600);
   BTSerial.begin(9600);
-  _imu.begin();
+
+  // try to initialize the IMU
+  while (!bno08x.begin_I2C()) {
+    Serial.println("Failed to find BNO08x chip");
+    delay(10);
+  }
+
+  Serial.println("BNO08x Found!");
+  setReports(reportType, reportIntervalUs);
+  Serial.println("Reading events");
+
+  // initialize microlight switch pins
+  for (int i = 0; i < sizeof(switchPointers); i++) {
+    pinMode(switchPointers[i]->pin, INPUT_PULLUP);
+  }
 
   /*
    (val): Control name
@@ -54,33 +274,39 @@ void setup()
       15: Fire
   */
   DFSerial.begin(9600);
-  if (!myDFPlayer.begin(DFSerial, /*isACK = */ true, /*doReset = */ true))
-  { // Use serial to communicate with mp3.
+  if (!myDFPlayer.begin(DFSerial, /*isACK = */ true, /*doReset = */ true)) {  // Use serial to communicate with mp3.
     Serial.println("No Connection to DFPlayer");
     DFPlayerActive = false;
-  }
-  else
-  {
+  } else {
     DFPlayerActive = true;
     Serial.println(F("Connection Succesfull"));
-    myDFPlayer.setTimeOut(500); // Set serial communictaion time out 500ms
+    myDFPlayer.setTimeOut(500);  // Set serial communictaion time out 500ms
     myDFPlayer.volume(70);
     myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
     myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
   }
+
+  // crucial
+  delay(2000);
 }
 
-void loop()
-{
-  if (startUp)
-  {
-    delay(500);
-    _imu.calibrate();
-    delay(500);
-  }
+void loop() {
+  // zero the IMU or get readings
+  if (bno08x.getSensorEvent(&sensorValue)) {
+    // read the IMU
+    quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
 
-  checkInput_LockCalibrate();
-  checkInput_SpeedFire();
+    // zero the IMU at the very beginning of the program
+    if (startUp) {
+      updateShifts();
+      myDFPlayer.playMp3Folder(13);
+      startUp = false;
+    }
+    // update theta and phi
+    else {
+      updateAngles();
+    }
+  }
 
   // speech recognition
   /*
@@ -104,158 +330,137 @@ void loop()
     10018	Sense High
     10019	Sense Low
   */
-  while (SpeechSerial.available() > 0)
-  {
+  while (SpeechSerial.available() > 0) {
     char c = SpeechSerial.read();
     speechMsg += c;
-    if (c == '\n')
-    {
+    if (c == '\n') {
       speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
       Serial.println(speechMsg);
       int val = speechMsg.toInt();
       speechMsg = "";
 
       // speed control
-      if (val <= 10)
-      {
+      if (val <= 10) {
         int diff = val * 10 - currSpeed;
         currSpeed = val * 10;
-        if (DFPlayerActive)
-        {
+        if (DFPlayerActive) {
           myDFPlayer.playMp3Folder(val);
-          // ----- SEND BLUETOOTH MESSAGE ----------
-          BTSerial.print("S" + String(diff) + '\n');
         }
-      }
-      else
-      {
-        switch(val) {
-            // calibrate
-            case 11:
-              _imu.calibrate();
-              myDFPlayer.playMp3Folder(13);
+      } else {
+        switch (val) {
+          // calibrate the IMU
+          case 11:
+            updateShifts();
+            myDFPlayer.playMp3Folder(13);
 
-            // fire
-            case 12:
-              // ----- SEND BLUETOOTH MESSAGE ----------
-              BTSerial.print("F\n");
-              myDFPlayer.playMp3Folder(15);
+          // fire the launcher
+          case 12:
+            fire = 1;
+            myDFPlayer.playMp3Folder(15);
 
-            // lock
-            case 13:
-              isLocked = true;
-              myDFPlayer.playMp3Folder(11);
+          // lock the launcher
+          case 13:
+            locked = true;
+            myDFPlayer.playMp3Folder(11);
 
-            // unlock
-            case 14:
-              isLocked = false;
-              myDFPlayer.playMp3Folder(12);
+          // unlock the launcher
+          case 14:
+            locked = false;
+            myDFPlayer.playMp3Folder(12);
         }
       }
     }
   }
 
-  // Do not send IMU data if lock is enabled
-  if (!isLocked)
-  {
-    float theta = _imu.getTheta();
-    float phi = _imu.getPhi();
-    Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-    // ----- SEND BLUETOOTH MESSAGE ----------
-    BTSerial.print("P" + String(phi) + "\nT" + String(theta) + '\n');
+  // check for click/hold/release
+  readSwitches();
+
+  // if only the red switch is clicked, change the speed
+  if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+    // TODO: implement speed control
   }
-
-  startUp = false;
-  delay(10);
-}
-
-// press toggles lock on/off
-// holding down for holdTime enters calibration mode
-char checkInput_LockCalibrate()
-{
-  // check if input is initially activated
-  if (digitalRead(LOCK_INPUT_PIN) == HIGH && !lockInputActive)
-  {
-    lockInputActive = true;
-    lockStartTime = millis();
-  }
-
-  // check if input is held for holdTime, lock launcher for calibration
-  else if (lockInputActive && millis() - lockStartTime == holdTime)
-  {
-    isLocked = true;
-    inCalibration = true;
-    myDFPlayer.playMp3Folder(14);
-  }
-
-  // check if input is released
-  else if (digitalRead(LOCK_INPUT_PIN) == LOW && lockInputActive)
-  {
-    lockInputActive = false;
-    if (inCalibration)
-    {
-      _imu.calibrate();
-      isLocked = false;
-      inCalibration = false;
-      myDFPlayer.playMp3Folder(13);
-    }
-    else
-    {
-      isLocked = !isLocked;
-      if (!isLocked)
-      {
-        myDFPlayer.playMp3Folder(12);
-      }
-      else
-      {
-        myDFPlayer.playMp3Folder(11);
-      }
-    }
-  }
-}
-
-// press adds 10 to speed
-// holding down for holdTime fire ball
-char checkInput_SpeedFire()
-{
-  // check if input is initially activated
-  if (digitalRead(SPEED_INPUT_PIN) == HIGH && !speedInputActive)
-  {
-    speedInputActive = true;
-    speedStartTime = millis();
-  }
-
-  // check if input is held for holdTime
-  else if (speedInputActive && millis() - speedStartTime == holdTime)
-  {
-    inFire = true;
+  // if only the red switch is held, fire the launcher
+  else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+    // fire the launcher
+    fire = 1;
     myDFPlayer.playMp3Folder(15);
+
+    // maybe
+    // resetSwitch(&redSwitch);
+  }
+  // if only the blue switch is clicked, toggle lock
+  else if (validClick(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
+    locked = !locked;
+
+    // play the appropriate audio file
+    if (locked) {
+      myDFPlayer.playMp3Folder(11);
+    } else {
+      myDFPlayer.playMp3Folder(12);
+    }
+  }
+  // if only the blue switch is held, calibrate the IMU
+  else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
+    updateShifts();
+    myDFPlayer.playMp3Folder(13);
   }
 
-  // check if input is released
-  else if (digitalRead(SPEED_INPUT_PIN) == LOW && speedInputActive)
-  {
-    speedInputActive = false;
-    if (inFire)
-    {
-      inFire = false;
-      // myDFPlayer.playMp3Folder(15); play a different message for firing?
-      // ----- SEND BLUETOOTH MESSAGE ----------
-      BTSerial.print("F\n");
-    }
-    else
-    {
-      currSpeed+=10;
-      if(currSpeed>100) {
-        currSpeed = 10;
-        // ----- SEND BLUETOOTH MESSAGE ----------
-        BTSerial.print("S" + String(-90) + '\n');
-      }
-      else {
-        // ----- SEND BLUETOOTH MESSAGE ----------
-        BTSerial.print("S" + String(10) + '\n');
-      }
-      myDFPlayer.playMp3Folder(currSpeed/10);
-    }
+  // set theta and phi to 0 if the launcher is locked
+  if (locked) {
+    theta = 0;
+    phi = 0;
   }
+  // otherwise, calculate the shifted theta and phi angles
+  else {
+    theta = getShiftedTheta(theta);
+    phi = getShiftedPhi(phi);
+  }
+
+  Serial.println(theta);
+  Serial.println(phi);
+  Serial.println("");
+
+  // send the angles over BT
+  sendInfo();
+
+  // delay for the designated sample rate delay
+  delay(SAMPLERATE_DELAY_MS);
 }
+
+// // press adds 10 to speed
+// // holding down for holdTime fire ball
+// char checkInput_SpeedFire() {
+//   // check if input is initially activated
+//   if (digitalRead(SPEED_INPUT_PIN) == HIGH && !speedInputActive) {
+//     speedInputActive = true;
+//     speedStartTime = millis();
+//   }
+
+//   // check if input is held for holdTime
+//   else if (speedInputActive && millis() - speedStartTime == holdTime) {
+//     inFire = true;
+//     myDFPlayer.playMp3Folder(15);
+//   }
+
+//   // check if input is released
+//   else if (digitalRead(SPEED_INPUT_PIN) == LOW && speedInputActive) {
+//     speedInputActive = false;
+//     if (inFire) {
+//       inFire = false;
+//       // myDFPlayer.playMp3Folder(15); play a different message for firing?
+//       // ----- SEND BLUETOOTH MESSAGE ----------
+//       BTSerial.print("F\n");
+//     } else {
+//       currSpeed += 10;
+//       if (currSpeed > 100) {
+//         currSpeed = 10;
+//         // ----- SEND BLUETOOTH MESSAGE ----------
+//         BTSerial.print("S" + String(-90) + '\n');
+//       } else {
+//         // ----- SEND BLUETOOTH MESSAGE ----------
+//         BTSerial.print("S" + String(10) + '\n');
+//       }
+//       myDFPlayer.playMp3Folder(currSpeed / 10);
+//     }
+//   }
+// }

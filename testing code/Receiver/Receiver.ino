@@ -1,18 +1,11 @@
+// for BT communication
+#define BTSerial Serial3
+
 // required for servo operation
-#include <ServoTimer2.h>
+#include <Servo.h>
 
 // for sign operations
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
-
-//  Pins
-//  BT VCC to Arduino 5V out.
-//  BT GND to GND
-//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
-//  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
-
-// https://www.pjrc.com/teensy/td_libs_AltSoftSerial.html
-#include <AltSoftSerial.h>
-AltSoftSerial receiver;
 
 // start of text char
 char stx = 2;
@@ -31,10 +24,12 @@ float theta_angle = 0.0;
 float phi_angle = 0.0;
 
 // for the servo motor
-ServoTimer2 myServo;
+Servo myServo;
 int servoPin = 5;
 int servoZero = 90;
 int prevServoPos = servoZero;
+float servoSpeed;  // the scaled rotation speed of the servo (value from 0-1)
+float servoPos;    // the set position that the servo is being moved to
 
 // the maximum values of theta and phi
 int maxAngle = 30;
@@ -47,15 +42,8 @@ int act_LPWM = 12;  // linear actuator LWPM connection
 // state variables for linear actuator
 int actReading = 0;          // the value read by the linear actuator potentiometer
 float actSpeed;              // speed of the linear actuator (value from 0-255)
-float strokeLength = 8.0;    // length of linear actuator stroke
 int maxAnalogReading = 926;  // max value that linear actuator is allowed to move to
 int minAnalogReading = 39;   // min value that linear actuator is allowed to move to
-int actPos;                  // the set position that the linear actuator is being moved to
-
-// state variables for servo
-float servoSpeed;  // the scaled rotation of the servo (value from 0-1)
-float servoPos;    // the set position that the servo is being moved to
-int microPos;      // the servo position in microseconds that it is moving to
 
 // to keep track of the current firing mode
 // 0 = fine
@@ -153,16 +141,14 @@ void moveServo(float theta) {
   float diff = abs(theta) - sensitivity[sensitivityMode];
 
   // before moving, obtain the last written position of the servo
-  // prevServoPos = myServo.read();
+  prevServoPos = myServo.read();
 
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
     if (theta > 0) {
-      myServo.write(50);
-      // myServo.write(prevServoPos - 12);
+      myServo.write(prevServoPos - 12);
     } else if (theta < 0) {
-      // myServo.write(prevServoPos + 12);
-      myServo.write(-50);
+      myServo.write(prevServoPos + 12);
     }
   }
 }
@@ -197,8 +183,8 @@ char readSafe() {
   // read until we have a valid read
   while (!isValidChar(ch)) {
     // read while there is information to read
-    while (receiver.available() > 0) {
-      ch = char(receiver.read());
+    while (BTSerial.available() > 0) {
+      ch = char(BTSerial.read());
     }
   }
 
@@ -232,11 +218,11 @@ void setup() {
   Serial.println(" ");
 
   // start receiver BT at 9600 baud rate
-  receiver.begin(9600);
+  BTSerial.begin(9600);
   Serial.println("Receiver started at 9600");
 
   // zero the servo and attach it to the Arduino
-  //myServo.write(servoZero);
+  myServo.write(servoZero);
   myServo.attach(servoPin);
 
   // 1 second delay

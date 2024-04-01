@@ -1,9 +1,8 @@
-// required for IMU calculations
-#include <Arduino.h>
-#include <Adafruit_BNO08x.h>
+// for BT communication
+#define BTSerial Serial3
 
-// for I2C or UART
-#define BNO08X_RESET -1
+// required for IMU calculations
+#include <Adafruit_BNO08x.h>
 
 // for I2C or UART
 #define BNO08X_RESET -1
@@ -13,23 +12,6 @@
 Adafruit_BNO08x bno08x(BNO08X_RESET);
 sh2_SensorValue_t sensorValue;
 
-// Top frequency is about 250Hz but this report is more accurate
-sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
-long reportIntervalUs = 5000;
-
-// euler angles
-struct euler_t {
-  float yaw;
-  float pitch;
-  float roll;
-} ypr;
-
-void setReports(sh2_SensorId_t reportType, long report_interval) {
-  Serial.println("Setting desired reports");
-  if (!bno08x.enableReport(reportType, report_interval)) {
-    Serial.println("Could not enable stabilized remote vector");
-  }
-}
 // top frequency is about 250Hz but this report is more accurate
 sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
 int reportIntervalUs = 5000;
@@ -49,16 +31,6 @@ struct microlight_t {
   long elapsedTime;
 };
 
-//  Pins for HM-10 BT module
-//  BT VCC to Arduino 5V out
-//  BT GND to GND
-//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
-//  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
-
-// https://www.pjrc.com/teensy/td_libs_AltSoftSerial.html
-#include <AltSoftSerial.h>
-AltSoftSerial sender;
-
 // the curent angles at the time of calibration
 float shift_theta = 0.0;
 float shift_phi = 0.0;
@@ -71,7 +43,7 @@ float phi = 0.0;
 // the max values of theta and phi
 int maxAngle = 30;
 
-// to keep track of the current firing mode
+// to keep track of the current sensitivity
 // 0 = fine
 // 1 = coarse
 int sensitivityMode = 0;
@@ -91,7 +63,7 @@ int holdTime = 3000;
 int clickTime = 1000;
 
 // the launcher is initially locked
-bool locked = false;
+bool locked = true;
 
 // to keep track of the switch info to send to the launcher
 int speedChange;
@@ -133,7 +105,7 @@ bool validHold(microlight_t* microlight) {
 
 // reads and updates the current state of each microlight switch
 void readSwitches() {
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < sizeof(switchPointers); i++) {
     // the reading of the current switch we are evaluating
     int reading = digitalRead(switchPointers[i]->pin);
 
@@ -189,30 +161,6 @@ float getShiftedTheta(float theta) {
 }
 
 // returns the shifted value of phi after calibration
-float getPhi(float phi) {
-  return phi + (-1.0 * shift_phi);
-}
-
-void quaternionToEuler(float qr, float qi, float qj, float qk, euler_t* ypr, bool degrees = false) {
-
-  float sqr = sq(qr);
-  float sqi = sq(qi);
-  float sqj = sq(qj);
-  float sqk = sq(qk);
-
-  ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
-  ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
-  ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
-
-  if (degrees) {
-    ypr->yaw *= RAD_TO_DEG;
-    ypr->pitch *= RAD_TO_DEG;
-    ypr->roll *= RAD_TO_DEG;
-  }
-}
-
-void quaternionToEulerRV(sh2_RotationVectorWAcc_t* rotational_vector, euler_t* ypr, bool degrees = false) {
-  quaternionToEuler(rotational_vector->real, rotational_vector->i, rotational_vector->j, rotational_vector->k, ypr, degrees);
 float getShiftedPhi(float phi) {
   return phi + (-1.0 * shift_phi);
 }
@@ -246,56 +194,6 @@ void updateShifts() {
   shift_phi = ypr.pitch;
 }
 
-// updates the angles themselves (theta and phi)
-void updateAngles() {
-  theta = ypr.yaw;
-  phi = ypr.pitch;
-}
-
-void setup() {
-  // start serial monitor communication at 9600 baud rate
-  Serial.begin(9600);
-  Serial.println(" ");
-
-  // start sender BT at 9600 baud rate
-  sender.begin(9600);
-  Serial.println("Sender started at 9600");
-
-  // Try to initialize the IMU
-  if (!bno08x.begin_I2C()) {
-    Serial.println("Failed to find BNO08x chip");
-    while (1) { delay(10); }
-  }
-  Serial.println("BNO08x Found!");
-  setReports(reportType, reportIntervalUs);
-  Serial.println("Reading events");
-
-  // crucial
-  delay(2000);
-}
-
-void loop() {
-  // zero the IMU or get readings
-  if (bno08x.getSensorEvent(&sensorValue)) {
-    // read the IMU
-    quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
-
-    // zero the IMU at the very beginning of the program
-    if (updateCount < 1) {
-      updateShifts();
-      updateCount++;
-    }
-    // update theta and phi
-    else {
-      updateAngles();
-    }
-  }
-
-  // convert the euler angles to theta and phi
-  theta = getTheta(theta);
-  phi = getPhi(phi);
-}
-
 // updates the angles themselves
 void updateAngles() {
   theta = ypr.yaw;
@@ -323,7 +221,7 @@ void sendInfo() {
 
   // send the string over BT char by char
   for (int i = 0; i < allData.length(); i++) {
-    sender.write(allData.charAt(i));
+    BTSerial.write(allData.charAt(i));
     // Serial.print("Data sent: ");
     // Serial.println(allData.charAt(i));
   }
@@ -335,11 +233,11 @@ void setup() {
   Serial.println(" ");
 
   // start sender BT at 9600 baud rate
-  sender.begin(9600);
+  BTSerial.begin(9600);
   Serial.println("Sender started at 9600");
 
   // try to initialize the IMU
-  if (!bno08x.begin_I2C()) {
+  while (!bno08x.begin_I2C()) {
     Serial.println("Failed to find BNO08x chip");
     delay(10);
   }
@@ -349,7 +247,7 @@ void setup() {
   Serial.println("Reading events");
 
   // initialize microlight switch pins
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < sizeof(switchPointers); i++) {
     pinMode(switchPointers[i]->pin, INPUT_PULLUP);
   }
 
