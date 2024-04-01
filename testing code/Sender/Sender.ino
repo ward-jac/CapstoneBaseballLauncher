@@ -1,5 +1,9 @@
 // required for IMU calculations
+#include <Arduino.h>
 #include <Adafruit_BNO08x.h>
+
+// for I2C or UART
+#define BNO08X_RESET -1
 
 // for I2C or UART
 #define BNO08X_RESET -1
@@ -9,6 +13,23 @@
 Adafruit_BNO08x bno08x(BNO08X_RESET);
 sh2_SensorValue_t sensorValue;
 
+// Top frequency is about 250Hz but this report is more accurate
+sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
+long reportIntervalUs = 5000;
+
+// euler angles
+struct euler_t {
+  float yaw;
+  float pitch;
+  float roll;
+} ypr;
+
+void setReports(sh2_SensorId_t reportType, long report_interval) {
+  Serial.println("Setting desired reports");
+  if (!bno08x.enableReport(reportType, report_interval)) {
+    Serial.println("Could not enable stabilized remote vector");
+  }
+}
 // top frequency is about 250Hz but this report is more accurate
 sh2_SensorId_t reportType = SH2_ARVR_STABILIZED_RV;
 int reportIntervalUs = 5000;
@@ -168,6 +189,30 @@ float getShiftedTheta(float theta) {
 }
 
 // returns the shifted value of phi after calibration
+float getPhi(float phi) {
+  return phi + (-1.0 * shift_phi);
+}
+
+void quaternionToEuler(float qr, float qi, float qj, float qk, euler_t* ypr, bool degrees = false) {
+
+  float sqr = sq(qr);
+  float sqi = sq(qi);
+  float sqj = sq(qj);
+  float sqk = sq(qk);
+
+  ypr->yaw = atan2(2.0 * (qi * qj + qk * qr), (sqi - sqj - sqk + sqr));
+  ypr->pitch = asin(-2.0 * (qi * qk - qj * qr) / (sqi + sqj + sqk + sqr));
+  ypr->roll = atan2(2.0 * (qj * qk + qi * qr), (-sqi - sqj + sqk + sqr));
+
+  if (degrees) {
+    ypr->yaw *= RAD_TO_DEG;
+    ypr->pitch *= RAD_TO_DEG;
+    ypr->roll *= RAD_TO_DEG;
+  }
+}
+
+void quaternionToEulerRV(sh2_RotationVectorWAcc_t* rotational_vector, euler_t* ypr, bool degrees = false) {
+  quaternionToEuler(rotational_vector->real, rotational_vector->i, rotational_vector->j, rotational_vector->k, ypr, degrees);
 float getShiftedPhi(float phi) {
   return phi + (-1.0 * shift_phi);
 }
@@ -199,6 +244,56 @@ void quaternionToEulerRV(sh2_RotationVectorWAcc_t* rotational_vector, euler_t* y
 void updateShifts() {
   shift_theta = ypr.yaw;
   shift_phi = ypr.pitch;
+}
+
+// updates the angles themselves (theta and phi)
+void updateAngles() {
+  theta = ypr.yaw;
+  phi = ypr.pitch;
+}
+
+void setup() {
+  // start serial monitor communication at 9600 baud rate
+  Serial.begin(9600);
+  Serial.println(" ");
+
+  // start sender BT at 9600 baud rate
+  sender.begin(9600);
+  Serial.println("Sender started at 9600");
+
+  // Try to initialize the IMU
+  if (!bno08x.begin_I2C()) {
+    Serial.println("Failed to find BNO08x chip");
+    while (1) { delay(10); }
+  }
+  Serial.println("BNO08x Found!");
+  setReports(reportType, reportIntervalUs);
+  Serial.println("Reading events");
+
+  // crucial
+  delay(2000);
+}
+
+void loop() {
+  // zero the IMU or get readings
+  if (bno08x.getSensorEvent(&sensorValue)) {
+    // read the IMU
+    quaternionToEulerRV(&sensorValue.un.arvrStabilizedRV, &ypr, true);
+
+    // zero the IMU at the very beginning of the program
+    if (updateCount < 1) {
+      updateShifts();
+      updateCount++;
+    }
+    // update theta and phi
+    else {
+      updateAngles();
+    }
+  }
+
+  // convert the euler angles to theta and phi
+  theta = getTheta(theta);
+  phi = getPhi(phi);
 }
 
 // updates the angles themselves

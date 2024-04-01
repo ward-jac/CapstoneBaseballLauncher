@@ -1,28 +1,43 @@
 #include <Arduino.h>
-#include <ServoTimer2.h>
+#include <Servo.h>
+#include <Adafruit_VCNL4010.h/>
 #include "../include/Launcher.h"
 
-#define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0));
-ServoTimer2 myServo;
+//pitch actuator pins
+const int act_pin = A0;  // potentiometer pin 54
+const int act_RPWM = 11;
+const int act_LPWM = 12;
+//servo pin
+const int servoPin = 9;
+//autoloader pins
+int autoload_RPWM = 3;
+int autoload_LPWM = 4;
+//relay pins
+const int POWER = 5;
+const int SPEED_UP = 6;
+const int SPEED_DOWN = 7;
+const int ENTER = 8;
 
-// the maximum values of theta and phi
-const int maxAngle = 30;
-const int servoPin = 5;
+// servo
+Servo myServo;
+const int speed3MinAngle = 30;
+const int speed2MinAngle = 20;
+const int speed1MinAngle = 10;
+const int speed3 = 1;
+const int speed2 = 100;
+const int speed1 = 300;
+int speed = 0;
 int servoPos = 0;
 
-// Arduino pins for linear actuator (can't use 10 with AltSoftSerial)
-const int act_pin = A0;             // linear actuator potentiometer pin 54
-const int act_RPWM = 11;            // linear actutator RPWM connection
-const int act_LPWM = 12;            // linear actuator LWPM connection
-
+// actuator
 const int actReading = 0;
 const int strokeLength = 8.0;
 
-// for the relays
-const int POWER = 2;
-const int SPEED_UP = 3;
-const int SPEED_DOWN = 4;
-const int ENTER = 5;
+// autoloader
+Adafruit_VCNL4010 vcnl;
+int autoload_forwardPWM = 0;  // initial values for forward autoloader direction
+int autoload_reversePWM = 0;  // initial values for reverse autoloader direction
+int proximity;
 
 Launcher::Launcher() {
   myServo.write(servoPos);
@@ -78,7 +93,6 @@ void Launcher::moveAct(float phi) {
     // constrain phi within the max angles
     if (abs(phi) > maxAngle)
     {
-        phi = sgn(phi);
         phi = phi * maxAngle;
     }
 
@@ -102,56 +116,45 @@ void Launcher::moveAct(float phi) {
     }
 }
 
-void Launcher::moveServo(float theta) {
-  int sensLevel1 = 2;
-  int sensLevel2 = 5;
-  int sensLevel3 = 10;
-  int sensLevel4 = 20;
-
-  if(servoPos<45 && servoPos>-45) {
-    if(theta>40) {
-      servoPos = servoPos + sensLevel4;
-      move.write(servoPos);
-    }
-    else if(theta>30) {
-      servoPos = servoPos + sensLevel3;
-      myServo.write(servoPos);
-    }
-    else if(theta>20) {
-      servoPos = servoPos + sensLevel2;
-      myServo.write(servoPos);
-    }
-    else if(theta>10) {
-      servoPos = servoPos + sensLevel1;
-      myServo.write(servoPos);
-    }
-    else if(theta<-10) {
-      servoPos = servoPos - sensLevel1;
-      myServo.write(servoPos);
-    }
-    else if(theta<-20) {
-      servoPos = servoPos - sensLevel2;
-      myServo.write(servoPos);
-    }
-    else if(theta<-30) {
-      servoPos = servoPos - sensLevel3;
-      myServo.write(servoPos);
-    }
-    else if(theta<-40) {
-      servoPos = servoPos - sensLevel4;
-      myServo.write(servoPos);
-    }
+void Launcher::updateServo(float theta) {
+  if(abs(theta)>speed3MinAngle) {
+    speed = speed3;
   }
-  delay(80);
+  else if(abs(theta)>speed2MinAngle) {
+    speed = speed2;
+  }
+  else if(abs(theta)>speed1MinAngle) {
+    speed = speed1;
+  }
+  else {
+    speed = 0;
+  }
+  
+  if(speed!=0 && millis()%speed==0) {
+      if(theta>0) {
+        servoPos+=1;
+      } else {
+        servoPos-=1;
+      }
+      myServo.write(servoPos);
+  }
 }
 
-void Launcher::setSensitivity(char c) {
-  if(c == 'H')
-  {
-    sensitivityMode = 1;
+void Launcher::driveAutoLoad(){
+  /*When this function is called, a ball will be loaded into the system. The DC motor in the autoloader
+  will turn until the proximity sensor senses a ball. When the proximity sensor sesnses a ball this means that
+  the ball has dropped into the pitching machine*/
+  bool ball_sensed = false;
+  proximity = vcnl.readProximity();   //the value of the proximity sensor is read
+  while (ball_sensed == false){       //the DC motor will rotate until a ball has been sensed
+    autoload_forwardPWM = 1023;
+    proximity = vcnl.readProximity();
+    if (proximity > 4000){            //4000 is a good value to determine when a ball has dropped in front of the sensor
+      ball_sensed = true;
+      autoload_forwardPWM = 0;        //the autoloader will stop spinning to stop another ball from dropping
+    }
+    analogWrite(autoload_LPWM, 0);
+    analogWrite(autoload_RPWM, autoload_forwardPWM); //this will cause the DC motor to move forward
   }
-  else if(c == 'L')
-  {
-    sensitivityMode = 0;
-  }
+  delay(15000); //once a ball is dropped in, all systems will be stopped by this delay. This allows time for the ball to be launched without aiming or loading another ball
 }

@@ -1,172 +1,261 @@
-//  Pins for BT connection
-//  BT VCC to Arduino 5V out.
-//  BT GND to GND
-//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
-//  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
-
-// https://www.pjrc.com/teensy/td_libs_AltSoftSerial.html
-#include <AltSoftSerial.h>
-AltSoftSerial sender;
-
-// other libraries to include
+#include <DFRobotDFPlayerMini.h>
 #include <avr/io.h>
 #include <stdlib.h>
+#include <Arduino.h>
 #include "include/IMU.h"
-#include "include/Audio.h"
 
-// to define the IMU
-// TODO: edit for BNO085
-const int IMU_ADDRESS = 55;  // the model of the IMU
+// Bluetooth
+//  Arduino 48 (Mega) RX -> BT TX no need voltage divider
+//  Arduino 46 (Mega) TX -> BT RX through a voltage divider (5v to 3.3v)
+// AltSoftSerial bluetoothSerial;
+
+const int SPEED_INPUT_PIN = 7;
+const int LOCK_INPUT_PIN = 6;
+const int IMU_ADDRESS = 55;
+#define BTSerial Serial3
+#define DFSerial Serial2
+#define SpeechSerial Serial1
+
 IMU _imu(IMU_ADDRESS);
+DFRobotDFPlayerMini myDFPlayer;
+bool DFPlayerActive;
 
-// to play audio files
-// TODO: Same pin?
-const int SP_RX_PIN = 123;
-const int SP_TX_PIN = 123;
-Audio speaker(SP_RX_PIN, SP_TX_PIN);
+// Speed Control
+const int launcherProcessingSpeed = 200; // fastest time that launcher can process speed change inputs
+unsigned int currSpeed = 40;
+unsigned long speedStartTime;
+boolean speedInputActive = false;
+boolean inFire = false;
 
-// how long buttons need to be held to change response
-const long holdTime = 2000;
+// Locking
+unsigned long lockStartTime;
+boolean lockInputActive = false;
+boolean isLocked = false;
+boolean inCalibration = false;
 
-// locking
-const int LOCK_INPUT_PIN = 2;  // microlight switch to control locking
-long lockStartTime;            // the time the lock control button is pressed
-bool lockPressed = false;
-bool isLocked = false;
-bool inCalibration = false;
+const long holdTime = 2000; // button hold down time
+String speechMsg = "";      // speech recognition
+boolean startUp = true;
 
-// speed control
-const int SPEED_INPUT_PIN = 3;            // microlight switch to control speed
-const int launcherProcessingSpeed = 200;  // fastest time that launcher can process speed change inputs
-int currentSpeed = 40;                    // default speed
-long speedStartTime;                      // the time the speed control button is pressed
-bool speedPressed = false;
-bool isSensitivityLow = true;
+void setup()
+{
+  Serial.begin(19200);
+  SpeechSerial.begin(9600);
+  BTSerial.begin(9600);
+  _imu.begin();
 
-// autoloader
-const int AUTOLOAD_INPUT_PIN = 4;  // microlight switch to control autoloader
+  /*
+   (val): Control name
+  (1-10): Speed control - sets speed to val*10 speed
+      11: Lock Launcher
+      12: Unlock Launcher
+      13: Sensor Calibrated
+      14: Face Forward to Calibrate
+      15: Fire
+  */
+  DFSerial.begin(9600);
+  if (!myDFPlayer.begin(DFSerial, /*isACK = */ true, /*doReset = */ true))
+  { // Use serial to communicate with mp3.
+    Serial.println("No Connection to DFPlayer");
+    DFPlayerActive = false;
+  }
+  else
+  {
+    DFPlayerActive = true;
+    Serial.println(F("Connection Succesfull"));
+    myDFPlayer.setTimeOut(500); // Set serial communictaion time out 500ms
+    myDFPlayer.volume(70);
+    myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
+    myDFPlayer.outputDevice(DFPLAYER_DEVICE_SD);
+  }
+}
 
-void speechRecognition() {
+void loop()
+{
+  if (startUp)
+  {
+    delay(500);
+    _imu.calibrate();
+    delay(500);
+  }
+
+  checkInput_LockCalibrate();
+  checkInput_SpeedFire();
+
+  // speech recognition
+  /*
+    10001	Ten
+    10002	Twenty
+    10003	Thirty
+    10004	Forty
+    10005	Fifty
+    10006	Sixty
+    10007	Seventy
+    10008	Eighty
+    10009	Ninety
+    10010	Hundred
+    10011	Calibrate
+    10012	Fire
+    10013	Lock
+    10014	Unlock
+    10015	Cancel
+    10016	Mode One
+    10017	Mode Two
+    10018	Sense High
+    10019	Sense Low
+  */
+  while (SpeechSerial.available() > 0)
+  {
+    char c = SpeechSerial.read();
+    speechMsg += c;
+    if (c == '\n')
+    {
+      speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
+      Serial.println(speechMsg);
+      int val = speechMsg.toInt();
+      speechMsg = "";
+
+      // speed control
+      if (val <= 10)
+      {
+        int diff = val * 10 - currSpeed;
+        currSpeed = val * 10;
+        if (DFPlayerActive)
+        {
+          myDFPlayer.playMp3Folder(val);
+          // ----- SEND BLUETOOTH MESSAGE ----------
+          BTSerial.print("S" + String(diff) + '\n');
+        }
+      }
+      else
+      {
+        switch(val) {
+            // calibrate
+            case 11:
+              _imu.calibrate();
+              myDFPlayer.playMp3Folder(13);
+
+            // fire
+            case 12:
+              // ----- SEND BLUETOOTH MESSAGE ----------
+              BTSerial.print("F\n");
+              myDFPlayer.playMp3Folder(15);
+
+            // lock
+            case 13:
+              isLocked = true;
+              myDFPlayer.playMp3Folder(11);
+
+            // unlock
+            case 14:
+              isLocked = false;
+              myDFPlayer.playMp3Folder(12);
+        }
+      }
+    }
+  }
+
+  // Do not send IMU data if lock is enabled
+  if (!isLocked)
+  {
+    float theta = _imu.getTheta();
+    float phi = _imu.getPhi();
+    Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
+    // ----- SEND BLUETOOTH MESSAGE ----------
+    BTSerial.print("P" + String(phi) + "\nT" + String(theta) + '\n');
+  }
+
+  startUp = false;
+  delay(10);
 }
 
 // press toggles lock on/off
 // holding down for holdTime enters calibration mode
-void checkLockInput() {
+char checkInput_LockCalibrate()
+{
   // check if input is initially activated
-  if (digitalRead(LOCK_INPUT_PIN) == LOW && !lockPressed) {
-    lockPressed = true;
+  if (digitalRead(LOCK_INPUT_PIN) == HIGH && !lockInputActive)
+  {
+    lockInputActive = true;
     lockStartTime = millis();
-  } else {
-    // check if input is held for holdTime, lock launcher for calibration
-    if (millis() - lockStartTime >= holdTime) {
-      isLocked = true;
-      speaker.play("Release to calibrate");
-      inCalibration = true;
-    }
+  }
 
-    // check if input is released
-    if (digitalRead(LOCK_INPUT_PIN) == HIGH && lockPressed) {
-      lockPressed = false;
-      if (inCalibration) {
-        _imu.calibrate();
-        speaker.play("Calibrated");
-        isLocked = false;
-        inCalibration = false;
-      } else {
-        isLocked = !isLocked;
-        if (!isLocked) {
-          speaker.play("Launcher unlocked");
-        } else {
-          speaker.play("Launcher locked");
-        }
+  // check if input is held for holdTime, lock launcher for calibration
+  else if (lockInputActive && millis() - lockStartTime == holdTime)
+  {
+    isLocked = true;
+    inCalibration = true;
+    myDFPlayer.playMp3Folder(14);
+  }
+
+  // check if input is released
+  else if (digitalRead(LOCK_INPUT_PIN) == LOW && lockInputActive)
+  {
+    lockInputActive = false;
+    if (inCalibration)
+    {
+      _imu.calibrate();
+      isLocked = false;
+      inCalibration = false;
+      myDFPlayer.playMp3Folder(13);
+    }
+    else
+    {
+      isLocked = !isLocked;
+      if (!isLocked)
+      {
+        myDFPlayer.playMp3Folder(12);
+      }
+      else
+      {
+        myDFPlayer.playMp3Folder(11);
       }
     }
   }
 }
 
 // press adds 10 to speed
-// holding down for holdTime toggles sensitivity
-void checkSpeedInput() {
+// holding down for holdTime fire ball
+char checkInput_SpeedFire()
+{
   // check if input is initially activated
-  if (digitalRead(SPEED_INPUT_PIN) == LOW && !speedPressed) {
-    speedPressed = true;
+  if (digitalRead(SPEED_INPUT_PIN) == HIGH && !speedInputActive)
+  {
+    speedInputActive = true;
     speedStartTime = millis();
   }
 
-  // check if input is released
-  else if (digitalRead(SPEED_INPUT_PIN) == HIGH && speedPressed) {
-    if (millis() - speedStartTime == holdTime) {
-      speaker.play("Changing Sensitivity");
-      isSensitivityLow = !isSensitivityLow;
-      if (isSensitivityLow) {
-        sender.write('L');
-      } else {
-        sender.write('H');
-      }
-    } else {
-      float speed = 10;
-      speaker.play("Add 10 Speed");
+  // check if input is held for holdTime
+  else if (speedInputActive && millis() - speedStartTime == holdTime)
+  {
+    inFire = true;
+    myDFPlayer.playMp3Folder(15);
+  }
 
-      sender.write('S');
-      // sendFloat(10);
+  // check if input is released
+  else if (digitalRead(SPEED_INPUT_PIN) == LOW && speedInputActive)
+  {
+    speedInputActive = false;
+    if (inFire)
+    {
+      inFire = false;
+      // myDFPlayer.playMp3Folder(15); play a different message for firing?
+      // ----- SEND BLUETOOTH MESSAGE ----------
+      BTSerial.print("F\n");
+    }
+    else
+    {
+      currSpeed+=10;
+      if(currSpeed>100) {
+        currSpeed = 10;
+        // ----- SEND BLUETOOTH MESSAGE ----------
+        BTSerial.print("S" + String(-90) + '\n');
+      }
+      else {
+        // ----- SEND BLUETOOTH MESSAGE ----------
+        BTSerial.print("S" + String(10) + '\n');
+      }
+      myDFPlayer.playMp3Folder(currSpeed/10);
     }
   }
-}
-
-void checkFireInput() {
-  // check if input is active
-  if (digitalRead(AUTOLOAD_INPUT_PIN) == LOW) {
-  }
-}
-
-void sendMessage(float theta, float phi) {
-  // start of text char
-  char stx = 2;
-
-  // end of text char
-  char etx = 3;
-
-  // create the data string to send over BT
-  String data = stx + String(theta, 1) + " " + String(phi, 1) + etx;
-
-  // send the string over BT char by char
-  for (int i = 0; i < data.length(); i++) {
-    sender.write(data.charAt(i));
-    // Serial.print("Data sent: ");
-    // Serial.println(data.charAt(i));
-  }
-}
-
-void setup() {
-  // initialize the serial monitor for testing purposes
-  Serial.begin(9600);
-
-  // initialize the sender BT
-  sender.begin(9600);
-
-  // start and calibrate the IMU
-  _imu.begin();
-  delay(1000);
-  _imu.calibrate();
-
-  // crucial
-  delay(1000);
-}
-
-void loop() {
-  speechRecognition();
-  checkLockInput();
-  checkSpeedInput();
-  checkFireInput();
-
-  // do not send IMU data if lock is enabled
-  if (!isLocked) {
-    float theta = _imu.getTheta();
-    float phi = _imu.getPhi();
-    //sendMessage function
-
-    Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
-  }
-
-  delay(10);
 }

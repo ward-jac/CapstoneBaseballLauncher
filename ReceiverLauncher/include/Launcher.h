@@ -4,9 +4,10 @@
 class Launcher {
     public:
         Launcher();
+        void addSpeed(int incSpeed);
         void moveAct(float phi);
-        void moveServo(float theta);
-        void setSensitivity(char c);
+        void updateServo(float theta);
+        void driveAutoLoad();
 
     private:
         void driveActuator(int Direction, int Speed);
