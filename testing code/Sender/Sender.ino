@@ -59,8 +59,8 @@ int sensitivityMode = 0;
 int sensitivity[] = { 7, 15 };
 
 // the microlight switches
-struct microlight_t redSwitch = { false, 2, 0, 0 };
-struct microlight_t blueSwitch = { false, 3, 0, 0 };
+struct microlight_t redSwitch = { false, 8, 0, 0 };
+struct microlight_t blueSwitch = { false, 9, 0, 0 };
 struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
 // the min time required to register a held switch
@@ -70,7 +70,7 @@ int holdTime = 3000;
 int clickTime = 1000;
 
 // the launcher is initially locked
-bool locked = true;
+bool locked = false;
 
 // to keep track of the switch info to send to the launcher
 int speedChange;
@@ -112,7 +112,7 @@ bool validHold(microlight_t* microlight) {
 
 // reads and updates the current state of each microlight switch
 void readSwitches() {
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < 2; i++) {
     // the reading of the current switch we are evaluating
     int reading = digitalRead(switchPointers[i]->pin);
 
@@ -244,7 +244,7 @@ void setup() {
   Serial.println("Sender started at 9600");
 
   // try to initialize the IMU
-  while (!bno08x.begin_I2C()) {
+  if (!bno08x.begin_I2C()) {
     Serial.println("Failed to find BNO08x chip");
     delay(10);
   }
@@ -254,7 +254,7 @@ void setup() {
   Serial.println("Reading events");
 
   // initialize microlight switch pins
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < 2; i++) {
     pinMode(switchPointers[i]->pin, INPUT_PULLUP);
   }
 
@@ -285,6 +285,7 @@ void loop() {
   // if only the red switch is clicked, change the speed
   if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
     // change the speed
+    Serial.println("Change speed");
   }
   // if only the red switch is held, fire the launcher
   else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
@@ -293,14 +294,18 @@ void loop() {
 
     // maybe
     resetSwitch(&redSwitch);
+
+    Serial.println("Fire!");
   }
   // if only the blue switch is clicked, toggle lock
   else if (validClick(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
     locked = !locked;
+    Serial.println("Lock toggled");
   }
   // if only the blue switch is held, calibrate the IMU
   else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
     updateShifts();
+    Serial.println("IMU Calibrated");
   }
 
   // set theta and phi to 0 if the launcher is locked

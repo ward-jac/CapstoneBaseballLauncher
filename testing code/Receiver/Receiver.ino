@@ -266,7 +266,6 @@ void loop() {
     // update theta and phi and reset the data string
     theta_angle = dataToTheta(data);
     phi_angle = dataToPhi(data);
-    data = "";
 
     // update the state variables for speed up, speed down, and fire
     updateStateVars(data);
@@ -286,8 +285,11 @@ void loop() {
       Serial.print(data.charAt(i));
     }
 
+    // reset the data string
+    data = "";
+
     Serial.println("");
-    Serial.println("Theta: " + String(theta_angle));
-    Serial.println("Phi: " + String(phi_angle));
+    // Serial.println("Theta: " + String(theta_angle));
+    // Serial.println("Phi: " + String(phi_angle));
   }
 }
