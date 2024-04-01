@@ -82,6 +82,28 @@ void loop()
   checkInput_LockCalibrate();
   checkInput_SpeedFire();
 
+  // speech recognition
+  /*
+    10001	Ten
+    10002	Twenty
+    10003	Thirty
+    10004	Forty
+    10005	Fifty
+    10006	Sixty
+    10007	Seventy
+    10008	Eighty
+    10009	Ninety
+    10010	Hundred
+    10011	Calibrate
+    10012	Fire
+    10013	Lock
+    10014	Unlock
+    10015	Cancel
+    10016	Mode One
+    10017	Mode Two
+    10018	Sense High
+    10019	Sense Low
+  */
   while (SpeechSerial.available() > 0)
   {
     char c = SpeechSerial.read();
@@ -107,22 +129,28 @@ void loop()
       }
       else
       {
-        /*
-          switch(val) {
-              // lock
-              case 11:
+        switch(val) {
+            // calibrate
+            case 11:
+              _imu.calibrate();
+              myDFPlayer.playMp3Folder(13);
 
-              // unlock
-              case 12:
+            // fire
+            case 12:
+              // ----- SEND BLUETOOTH MESSAGE ----------
+              BTSerial.print("F\n");
+              myDFPlayer.playMp3Folder(15);
 
-              // Calibrate
-              case 13:
+            // lock
+            case 13:
+              isLocked = true;
+              myDFPlayer.playMp3Folder(11);
 
-              // Fire
-              case 14:
-
-          }
-          */
+            // unlock
+            case 14:
+              isLocked = false;
+              myDFPlayer.playMp3Folder(12);
+        }
       }
     }
   }
@@ -134,7 +162,7 @@ void loop()
     float phi = _imu.getPhi();
     Serial.println("phi: " + String(phi) + " / theta: " + String(theta));
     // ----- SEND BLUETOOTH MESSAGE ----------
-    BTSerial.print("P" + String(phi) + "T" + String(theta) + '\n');
+    BTSerial.print("P" + String(phi) + "\nT" + String(theta) + '\n');
   }
 
   startUp = false;
@@ -211,9 +239,9 @@ char checkInput_SpeedFire()
     if (inFire)
     {
       inFire = false;
+      // myDFPlayer.playMp3Folder(15); play a different message for firing?
       // ----- SEND BLUETOOTH MESSAGE ----------
       BTSerial.print("F\n");
-      // myDFPlayer.playMp3Folder(15); play a different message for firing?
     }
     else
     {
@@ -227,27 +255,7 @@ char checkInput_SpeedFire()
         // ----- SEND BLUETOOTH MESSAGE ----------
         BTSerial.print("S" + String(10) + '\n');
       }
+      myDFPlayer.playMp3Folder(currSpeed/10);
     }
   }
 }
-
-/* Unecessary?
-void sendMessage(float theta, float phi)
-{
-  // start of text char
-  char stx = 2;
-
-  // end of text char
-  char etx = 3;
-
-  // create the data string to send over BT
-  String data = stx + String(theta, 1) + " " + String(phi, 1) + etx;
-
-    // send the string over BT char by char
-    for (int i = 0; i < data.length(); i++) {
-    //sender.write(data.charAt(i));
-    // Serial.print("Data sent: ");
-    // Serial.println(data.charAt(i));
-    }
-}
-*/
