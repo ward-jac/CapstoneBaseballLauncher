@@ -62,7 +62,7 @@ int maxAngle = 30;
 // to keep track of the current sensitivity
 // 0 = fine
 // 1 = coarse
-int sensitivityMode = 0;
+int sensitivityMode = 1;
 
 // the minimum angle needed to activate
 int sensitivity[] = { 7, 15 };
@@ -218,7 +218,7 @@ void updateAngles() {
 
 // generates a string of data describing the state of the switches
 String generateSwitchData() {
-  return String(speedInfo) + String(fireInfo);
+  return String(speedInfo) + String(fireInfo) + String(sensitivityMode);
 }
 
 // sends information over BT
@@ -379,8 +379,19 @@ void loop() {
   // check for click/hold/release for change speed or fire
   readSwitches();
 
+  // if both switches are held, change the sensitivity
+  if (validHold(&redSwitch) && validHold(&blueSwitch)) {
+    if (sensitivityMode) {
+      sensitivityMode = 0;
+      // audio file?
+    }
+    else {
+      sensitivityMode = 1;
+      // audio file?
+    }
+  }
   // if only the red switch is clicked, change the speed
-  if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+  else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
     // TODO: implement speed control
   }
   // if only the red switch is held, fire the launcher

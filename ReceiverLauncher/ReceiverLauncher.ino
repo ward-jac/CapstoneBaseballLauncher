@@ -146,15 +146,18 @@ void moveServo(float theta) {
   // the difference between theta and the activation angle for a given sensitivity
   float diff = abs(theta) - sensitivity[sensitivityMode];
 
+  // determine the servo speed based on theta
+  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 15.0);
+
   // before moving, obtain the last written position of the servo
   prevServoPos = myServo.read();
 
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
     if (theta > 0) {
-      myServo.write(prevServoPos - 12);
+      myServo.write(prevServoPos - servoSpeed);
     } else if (theta < 0) {
-      myServo.write(prevServoPos + 12);
+      myServo.write(prevServoPos + servoSpeed);
     }
   }
 }
@@ -179,6 +182,7 @@ void updateStateVars(String str) {
 
   speedInfo = int(stateVars.charAt(0));
   fireInfo = int(stateVars.charAt(1));
+  sensitivityMode = int(stateVars.charAt(2));
 }
 
 // safely read and process a character from BT
