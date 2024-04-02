@@ -105,7 +105,7 @@ bool validHold(microlight_t* microlight) {
 
 // reads and updates the current state of each microlight switch
 void readSwitches() {
-  for (int i = 0; i < sizeof(switchPointers); i++) {
+  for (int i = 0; i < sizeof(switchPointers) / sizeof(microlight_t*); i++) {
     // the reading of the current switch we are evaluating
     int reading = digitalRead(switchPointers[i]->pin);
 
@@ -237,7 +237,7 @@ void setup() {
   Serial.println("Sender started at 9600");
 
   // try to initialize the IMU
-  while (!bno08x.begin_I2C()) {
+  if (!bno08x.begin_I2C()) {
     Serial.println("Failed to find BNO08x chip");
     delay(10);
   }
@@ -247,7 +247,7 @@ void setup() {
   Serial.println("Reading events");
 
   // initialize microlight switch pins
-  for (int i = 0; i < sizeof(switchPointers); i++) {
+  for (int i = 0; i < sizeof(switchPointers) / sizeof(microlight_t*); i++) {
     pinMode(switchPointers[i]->pin, INPUT_PULLUP);
   }
 
@@ -305,7 +305,7 @@ void loop() {
   if (locked) {
     theta = 0;
     phi = 0;
-  } 
+  }
   // otherwise, calculate the shifted theta and phi angles
   else {
     theta = getShiftedTheta(theta);
