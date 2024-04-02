@@ -4,6 +4,10 @@
 // required for servo operation
 #include <Servo.h>
 
+// proximity sensor
+#include "Adafruit_VCNL4010.h"
+Adafruit_VCNL4010 vcnl;
+
 // for sign operations
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0))
 
@@ -23,6 +27,9 @@ char c = ' ';
 float theta_angle = 0.0;
 float phi_angle = 0.0;
 
+// the maximum values of theta and phi
+int maxAngle = 30;
+
 // for the servo motor
 Servo myServo;
 int servoPin = 5;
@@ -31,8 +38,13 @@ int prevServoPos = servoZero;
 float servoSpeed;  // the scaled rotation speed of the servo (value from 0-1)
 float servoPos;    // the set position that the servo is being moved to
 
-// the maximum values of theta and phi
-int maxAngle = 30;
+// for the proximity sensor
+int proximity = 0;
+int proxThreshold = 4000;
+
+// pins for autoloader TODO
+int autoload_RPWM = 3;     
+int autoload_LPWM = 4;
 
 // pins for linear actuator
 int act_pin = A0;   // linear actuator potentiometer pin
@@ -58,7 +70,7 @@ int speedInfo;
 int fireInfo;
 
 // to change the launcher speed with a relay
-int speedPin = 6;
+int speedPin = 6;  // TODO
 
 // the number of times to trigger the relay to change speed
 int numClicks = 10;
@@ -100,7 +112,7 @@ void driveActuator(int dir, float Speed) {
       analogWrite(act_LPWM, 0);
       break;
 
-    case -1: // retraction
+    case -1:  // retraction
       analogWrite(act_RPWM, 0);
       analogWrite(act_LPWM, Speed);
       break;
@@ -228,6 +240,30 @@ void changeSpeed() {
   }
 }
 
+// loads a ball into the system, the DC motor will turn until the proximity sensor senses a ball
+void driveAutoloader() {
+  // no ball is present initially
+  bool sensed = false;
+
+  // run the DC motor until a ball has been sensed
+  while (!sensed) {
+    // read the proximity sensor
+    proximity = vcnl.readProximity();
+
+    // check if a ball has been sensed
+    if (proximity > 4000) {
+      sensed = true;
+    }
+
+    // drive the autoloader
+    analogWrite(autoload_LPWM, 0);
+    analogWrite(autoload_RPWM, 1023);
+  }
+
+  // TODO: make this longer?
+  delay(1000);
+}
+
 void setup() {
   // start serial monitor communication at 9600 baud rate
   Serial.begin(9600);
@@ -236,6 +272,9 @@ void setup() {
   Serial.print("Uploaded: ");
   Serial.println(__DATE__);
   Serial.println(" ");
+
+  // start the proximity sensor
+  vcnl.begin();
 
   // start receiver BT at 9600 baud rate
   BTSerial.begin(9600);
@@ -246,12 +285,18 @@ void setup() {
   pinMode(act_RPWM, OUTPUT);
   pinMode(act_LPWM, OUTPUT);
 
+  // establish the autoloader
+  pinMode(autoload_RPWM, OUTPUT);
+  pinMode(autoload_LPWM, OUTPUT);
+
   // establish the relay for speed change and make sure its off
   pinMode(speedPin, OUTPUT);
   digitalWrite(speedPin, HIGH);
 
   // zero the servo and attach it to the Arduino
   myServo.write(servoZero);
+
+  // TODO: check for min and max position data
   myServo.attach(servoPin);
 
   // 1 second delay
