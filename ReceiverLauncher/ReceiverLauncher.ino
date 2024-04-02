@@ -34,7 +34,7 @@ float servoPos;    // the set position that the servo is being moved to
 // the maximum values of theta and phi
 int maxAngle = 30;
 
-// Arduino pins for linear actuator (don't use pin 10)
+// pins for linear actuator
 int act_pin = A0;   // linear actuator potentiometer pin
 int act_RPWM = 11;  // linear actutator RPWM connection
 int act_LPWM = 12;  // linear actuator LWPM connection
@@ -54,8 +54,14 @@ int sensitivityMode = 1;
 int sensitivity[] = { 7, 15 };
 
 // to keep track of the switch info to send to the launcher
-int speedChange;
-int fire;
+int speedInfo;
+int fireInfo;
+
+// to change the launcher speed with a relay
+int speedPin = 6;
+
+// the number of times to trigger the relay to change speed
+int numClicks = 10;
 
 // the minimum time between each fire
 long fireCooldown = 5000;
@@ -165,14 +171,14 @@ float dataToPhi(String str) {
   return str.substring(space1 + 1, space2).toFloat();
 }
 
-// update the state variables for speed up, speed down, and fire
+// update the state variables for speed change and fire
 void updateStateVars(String str) {
   int space1 = str.indexOf(" ");
   int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
   String stateVars = str.substring(space2 + 1, str.indexOf(etx));
 
-  speedChange = int(stateVars.charAt(0));
-  fire = int(stateVars.charAt(1));
+  speedInfo = int(stateVars.charAt(0));
+  fireInfo = int(stateVars.charAt(1));
 }
 
 // safely read and process a character from BT
@@ -208,6 +214,16 @@ bool isValidChar(char ch) {
   return isValid;
 }
 
+// pulses the relay to change speed
+void changeSpeed() {
+  for (int i = 0; i < numClicks; i++) {
+    digitalWrite(speedPin, LOW);
+    delay(50);
+    digitalWrite(speedPin, HIGH);
+    delay(50);
+  }
+}
+
 void setup() {
   // start serial monitor communication at 9600 baud rate
   Serial.begin(9600);
@@ -220,6 +236,15 @@ void setup() {
   // start receiver BT at 9600 baud rate
   BTSerial.begin(9600);
   Serial.println("Receiver started at 9600");
+
+  // establish the linear actuator
+  pinMode(act_pin, INPUT);
+  pinMode(act_RPWM, OUTPUT);
+  pinMode(act_LPWM, OUTPUT);
+
+  // establish the relay for speed change and make sure its off
+  pinMode(speedPin, OUTPUT);
+  digitalWrite(speedPin, HIGH);
 
   // zero the servo and attach it to the Arduino
   myServo.write(servoZero);
@@ -253,14 +278,14 @@ void loop() {
     theta_angle = dataToTheta(data);
     phi_angle = dataToPhi(data);
 
-    // update the state variables for speed up, speed down, and fire
+    // update the state variables for speed change and fire
     updateStateVars(data);
 
     // move the servo and linear actuator
     moveServo(theta_angle);
     moveAct(phi_angle);
 
-    if (fire && ((millis() - lastFireTime) > fireCooldown)) {
+    if (fireInfo && ((millis() - lastFireTime) > fireCooldown)) {
       // TODO: fire
 
       lastFireTime = millis();

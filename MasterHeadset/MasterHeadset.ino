@@ -82,8 +82,8 @@ int clickTime = 1000;
 bool locked = true;
 
 // to keep track of the switch info to send to the launcher
-int speedChange;
-int fire;
+int speedInfo;
+int fireInfo;
 
 // updates the structs when a microlight switch is clicked
 void switchClicked(microlight_t* microlight) {
@@ -218,7 +218,7 @@ void updateAngles() {
 
 // generates a string of data describing the state of the switches
 String generateSwitchData() {
-  return String(speedChange) + String(fire);
+  return String(speedInfo) + String(fireInfo);
 }
 
 // sends information over BT
@@ -355,7 +355,7 @@ void loop() {
 
           // fire the launcher
           case 12:
-            fire = 1;
+            fireInfo = 1;
             myDFPlayer.playMp3Folder(15);
 
           // lock the launcher
@@ -372,7 +372,11 @@ void loop() {
     }
   }
 
-  // check for click/hold/release
+  // assume that we don't want to change speed or fire
+  speedInfo = 0;
+  fireInfo = 0;
+
+  // check for click/hold/release for change speed or fire
   readSwitches();
 
   // if only the red switch is clicked, change the speed
@@ -382,7 +386,7 @@ void loop() {
   // if only the red switch is held, fire the launcher
   else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
     // fire the launcher
-    fire = 1;
+    fireInfo = 1;
     myDFPlayer.playMp3Folder(15);
 
     // maybe
