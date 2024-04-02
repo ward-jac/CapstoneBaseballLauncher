@@ -43,7 +43,7 @@ int proximity = 0;
 int proxThreshold = 4000;
 
 // pins for autoloader TODO
-int autoload_RPWM = 3;     
+int autoload_RPWM = 3;
 int autoload_LPWM = 4;
 
 // pins for linear actuator
@@ -73,7 +73,7 @@ int fireInfo;
 int speedPin = 6;  // TODO
 
 // the number of times to trigger the relay to change speed
-int numClicks = 10;
+int numClicks = 1;
 
 // the minimum time between each fire
 long fireCooldown = 5000;
@@ -186,7 +186,7 @@ float dataToPhi(String str) {
   return str.substring(space1 + 1, space2).toFloat();
 }
 
-// update the state variables for speed change and fire
+// update the state variables for speed change, fire, and sensitivity
 void updateStateVars(String str) {
   int space1 = str.indexOf(" ");
   int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
@@ -327,17 +327,24 @@ void loop() {
     theta_angle = dataToTheta(data);
     phi_angle = dataToPhi(data);
 
-    // update the state variables for speed change and fire
+    // update the state variables for speed change, fire, and sensitivity
     updateStateVars(data);
 
     // move the servo and linear actuator
     moveServo(theta_angle);
     moveAct(phi_angle);
 
-    if (fireInfo && ((millis() - lastFireTime) > fireCooldown)) {
-      // TODO: fire
-
-      lastFireTime = millis();
+    // check if enough time has passed since firing
+    if ((millis() - lastFireTime) > fireCooldown) {
+      if (fireInfo) {
+        // fire and update the last fire time
+        driveAutoloader();
+        lastFireTime = millis();
+      }
+      else if (speedInfo) {
+        // change the speed
+        changeSpeed();
+      }
     }
 
     // print what is received from BT

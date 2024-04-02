@@ -10,9 +10,8 @@
 DFRobotDFPlayerMini myDFPlayer;
 bool DFPlayerActive;
 
-// Speed Control
-const int launcherProcessingSpeed = 200;  // fastest time that launcher can process speed change inputs
-unsigned int currSpeed = 40;
+// the default speed on startup
+int currSpeed = 40;
 
 // speech recognition
 String speechMsg = "";
@@ -391,7 +390,19 @@ void loop() {
   }
   // if only the red switch is clicked, change the speed
   else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
-    // TODO: implement speed control
+    // speed control
+    currSpeed += 10;
+
+    // we want to change the speed
+    speedInfo = 1;
+
+    // loop around if max speed is reached
+    if (currSpeed >= 100) {
+      currSpeed = 10;
+    }
+    
+    // play the appropriate speed audio file
+    myDFPlayer.playMp3Folder(currSpeed / 10);
   }
   // if only the red switch is held, fire the launcher
   else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
@@ -440,41 +451,3 @@ void loop() {
   // delay for the designated sample rate delay
   delay(SAMPLERATE_DELAY_MS);
 }
-
-// // press adds 10 to speed
-// // holding down for holdTime fire ball
-// char checkInput_SpeedFire() {
-//   // check if input is initially activated
-//   if (digitalRead(SPEED_INPUT_PIN) == HIGH && !speedInputActive) {
-//     speedInputActive = true;
-//     speedStartTime = millis();
-//   }
-
-//   // check if input is held for holdTime
-//   else if (speedInputActive && millis() - speedStartTime == holdTime) {
-//     inFire = true;
-//     myDFPlayer.playMp3Folder(15);
-//   }
-
-//   // check if input is released
-//   else if (digitalRead(SPEED_INPUT_PIN) == LOW && speedInputActive) {
-//     speedInputActive = false;
-//     if (inFire) {
-//       inFire = false;
-//       // myDFPlayer.playMp3Folder(15); play a different message for firing?
-//       // ----- SEND BLUETOOTH MESSAGE ----------
-//       BTSerial.print("F\n");
-//     } else {
-//       currSpeed += 10;
-//       if (currSpeed > 100) {
-//         currSpeed = 10;
-//         // ----- SEND BLUETOOTH MESSAGE ----------
-//         BTSerial.print("S" + String(-90) + '\n');
-//       } else {
-//         // ----- SEND BLUETOOTH MESSAGE ----------
-//         BTSerial.print("S" + String(10) + '\n');
-//       }
-//       myDFPlayer.playMp3Folder(currSpeed / 10);
-//     }
-//   }
-// }
