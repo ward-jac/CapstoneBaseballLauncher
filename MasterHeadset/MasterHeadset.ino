@@ -72,7 +72,7 @@ struct microlight_t blueSwitch = { false, 9, 0, 0 };
 struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
 // the min time required to register a held switch
-int holdTime = 3000;
+int holdTime = 2000;
 
 // the max time to register a clicked switch
 int clickTime = 1000;
@@ -383,11 +383,6 @@ void loop() {
       sensitivityMode = 1;
       // audio file?
     }
-
-    // reset both switches after holding
-    resetSwitch(&redSwitch);
-    resetSwitch(&blueSwitch);
-    Serial.println("Sensitivity changed.");
   }
   // if only the red switch is clicked, change the speed
   else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
@@ -398,24 +393,18 @@ void loop() {
     speedInfo = 1;
 
     // loop around if max speed is reached
-    if (currSpeed >= 100) {
+    if (currSpeed > 100) {
       currSpeed = 10;
     }
     
     // play the appropriate speed audio file
     myDFPlayer.playMp3Folder(currSpeed / 10);
-
-    Serial.println("Speed changed.");
   }
   // if only the red switch is held, fire the launcher
   else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
     // fire the launcher
     fireInfo = 1;
     myDFPlayer.playMp3Folder(15);
-
-    // reset the red switch after holding
-    resetSwitch(&redSwitch);
-    Serial.println("Fire!");
   }
   // if only the blue switch is clicked, toggle lock
   else if (validClick(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
@@ -427,8 +416,6 @@ void loop() {
     } else {
       myDFPlayer.playMp3Folder(12);
     }
-
-    Serial.println("Lock toggled.");
   }
   // if only the blue switch is held, calibrate the IMU
   else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
@@ -436,12 +423,12 @@ void loop() {
     myDFPlayer.playMp3Folder(13);
 
     // reset the blue switch after holding
-    resetSwitch(&blueSwitch);
+    // resetSwitch(&blueSwitch);
     Serial.println("IMU calibrated.");
   }
 
-  // set theta and phi to 0 if the launcher is locked
-  if (locked || (blueSwitch.elapsedTime > 500)) {
+  // set theta and phi to 0 if the launcher is locked or if we are calibrating the IMU
+  if (locked || (digitalRead(blueSwitch.pin) == LOW && blueSwitch.elapsedTime > 250)) {
     theta = 0;
     phi = 0;
   }
