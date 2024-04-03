@@ -108,14 +108,14 @@ void resetSwitch(microlight_t* microlight) {
   microlight->elapsedTime = 0;
 }
 
-// returns if a switch was successfully clicked (released in a short time)
+// returns if a switch was successfully clicked and released
 bool validClick(microlight_t* microlight) {
   return (!microlight->prevClicked && (microlight->elapsedTime > 0 && microlight->elapsedTime < clickTime));
 }
 
-// returns if a switch was successfully held (released in a long time or not at all)
+// returns if a switch was successfully held and released
 bool validHold(microlight_t* microlight) {
-  return (microlight->elapsedTime > holdTime);
+  return (!microlight->prevClicked && (microlight->elapsedTime > holdTime));
 }
 
 // reads and updates the current state of each microlight switch
@@ -127,22 +127,18 @@ void readSwitches() {
     // the switch was just clicked
     if (reading == LOW && !switchPointers[i]->prevClicked) {
       switchClicked(switchPointers[i]);
-      // Serial.println("CLICKED");
     }
     // the switch is currently held down
     else if (reading == LOW && switchPointers[i]->prevClicked) {
       switchHeld(switchPointers[i]);
-      // Serial.println("HELD");
     }
     // the switch was just released
     else if (reading == HIGH && switchPointers[i]->prevClicked) {
       switchReleased(switchPointers[i]);
-      // Serial.println("RELEASED");
     }
     // the switch is off
     else if (reading == HIGH && !switchPointers[i]->prevClicked) {
       resetSwitch(switchPointers[i]);
-      // Serial.println("OFF");
     }
   }
 }
@@ -278,7 +274,7 @@ void setup() {
     DFPlayerActive = false;
   } else {
     DFPlayerActive = true;
-    Serial.println(F("Connection Succesfull"));
+    Serial.println(F("Connection Successfull"));
     myDFPlayer.setTimeOut(500);  // Set serial communictaion time out 500ms
     myDFPlayer.volume(70);
     myDFPlayer.EQ(DFPLAYER_EQ_NORMAL);
@@ -387,6 +383,11 @@ void loop() {
       sensitivityMode = 1;
       // audio file?
     }
+
+    // reset both switches after holding
+    resetSwitch(&redSwitch);
+    resetSwitch(&blueSwitch);
+    Serial.println("Sensitivity changed.");
   }
   // if only the red switch is clicked, change the speed
   else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
@@ -403,6 +404,8 @@ void loop() {
     
     // play the appropriate speed audio file
     myDFPlayer.playMp3Folder(currSpeed / 10);
+
+    Serial.println("Speed changed.");
   }
   // if only the red switch is held, fire the launcher
   else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
@@ -410,8 +413,9 @@ void loop() {
     fireInfo = 1;
     myDFPlayer.playMp3Folder(15);
 
-    // maybe
-    // resetSwitch(&redSwitch);
+    // reset the red switch after holding
+    resetSwitch(&redSwitch);
+    Serial.println("Fire!");
   }
   // if only the blue switch is clicked, toggle lock
   else if (validClick(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
@@ -423,15 +427,21 @@ void loop() {
     } else {
       myDFPlayer.playMp3Folder(12);
     }
+
+    Serial.println("Lock toggled.");
   }
   // if only the blue switch is held, calibrate the IMU
   else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
     updateShifts();
     myDFPlayer.playMp3Folder(13);
+
+    // reset the blue switch after holding
+    resetSwitch(&blueSwitch);
+    Serial.println("IMU calibrated.");
   }
 
   // set theta and phi to 0 if the launcher is locked
-  if (locked) {
+  if (locked || (blueSwitch.elapsedTime > 500)) {
     theta = 0;
     phi = 0;
   }
