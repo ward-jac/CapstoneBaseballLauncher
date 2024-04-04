@@ -43,13 +43,13 @@ int proximity = 0;
 int proxThreshold = 4000;
 
 // pins for autoloader TODO
-int autoload_RPWM = 3;
-int autoload_LPWM = 4;
+int autoload_RPWM = 25;
+int autoload_LPWM = 26;
 
 // pins for linear actuator
 int act_pin = A0;   // linear actuator potentiometer pin
-int act_RPWM = 11;  // linear actutator RPWM connection
-int act_LPWM = 12;  // linear actuator LWPM connection
+int act_RPWM = 50;  // linear actutator RPWM connection
+int act_LPWM = 51;  // linear actuator LWPM connection
 
 // state variables for linear actuator
 int actReading = 0;          // the value read by the linear actuator potentiometer
