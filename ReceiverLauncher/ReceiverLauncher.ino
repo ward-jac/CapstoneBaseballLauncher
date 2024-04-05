@@ -43,13 +43,13 @@ int proximity = 0;
 int proxThreshold = 4000;
 
 // pins for autoloader
-int autoload_RPWM = 25;
-int autoload_LPWM = 26;
+int autoload_RPWM = 10;
+int autoload_LPWM = 9;
 
 // pins for linear actuator
 int act_pin = A0;   // linear actuator potentiometer pin
-int act_RPWM = 50;  // linear actutator RPWM connection
-int act_LPWM = 51;  // linear actuator LWPM connection
+int act_RPWM = 45;  // linear actutator RPWM connection
+int act_LPWM = 46;  // linear actuator LWPM connection
 
 // state variables for linear actuator
 int actReading = 0;          // the value read by the linear actuator potentiometer
@@ -160,7 +160,7 @@ void moveServo(float theta) {
   float diff = abs(theta) - sensitivity[sensitivityMode]; // TODO
 
   // determine the servo speed based on theta
-  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 5.0);
+  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 2.0);
 
   // before moving, obtain the last written position of the servo
   prevServoPos = myServo.read();
@@ -353,7 +353,7 @@ void loop() {
     if ((millis() - lastFireTime) > fireCooldown) {
       if (fireInfo) {
         // fire and update the last fire time
-        // driveAutoloader(); // TODO
+        driveAutoloader(); // TODO
         lastFireTime = millis();
       } else if (speedInfo != 0) {
         // attempt to change the speed by the designated amount

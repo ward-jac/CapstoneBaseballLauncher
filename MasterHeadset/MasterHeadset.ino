@@ -23,7 +23,7 @@ String speechMsg = "";
 #define BNO08X_RESET -1
 
 // the sample rate delay and IMU
-#define SAMPLERATE_DELAY_MS (250)
+#define SAMPLERATE_DELAY_MS (200)
 Adafruit_BNO08x bno08x(BNO08X_RESET);
 sh2_SensorValue_t sensorValue;
 
@@ -78,7 +78,7 @@ int holdTime = 2000;
 int clickTime = 1000;
 
 // the launcher is initially locked
-bool locked = false;
+bool locked = true;
 
 // to keep track of the switch info to send to the launcher
 int speedInfo;
