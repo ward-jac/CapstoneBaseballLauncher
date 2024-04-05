@@ -309,7 +309,7 @@ void setup() {
   digitalWrite(speedDown, HIGH);
 
   // zero the servo and attach it to the Arduino
-  myServo.write(servoZero); // TODO
+  // myServo.write(servoZero);
 
   // TODO: check for min and max position data
   myServo.attach(servoPin);
