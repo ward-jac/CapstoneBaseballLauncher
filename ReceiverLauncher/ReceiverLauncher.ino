@@ -42,7 +42,7 @@ float servoPos;    // the set position that the servo is being moved to
 int proximity = 0;
 int proxThreshold = 4000;
 
-// pins for autoloader TODO
+// pins for autoloader
 int autoload_RPWM = 25;
 int autoload_LPWM = 26;
 
@@ -70,10 +70,11 @@ int speedInfo;
 int fireInfo;
 
 // to change the launcher speed with a relay
-int speedPin = 6;  // TODO
+int speedUp = 6;    // TODO
+int speedDown = 7;  // TODO
 
-// the number of times to trigger the relay to change speed
-int numClicks = 1;
+// the current speed of the launcher (speed 40 on startup)
+int currSpeed = 40;
 
 // the minimum time between each fire
 long fireCooldown = 5000;
@@ -186,15 +187,30 @@ float dataToPhi(String str) {
   return str.substring(space1 + 1, space2).toFloat();
 }
 
+// convert a string to an integer for speed info (positive or negative)
+int stringToSpeedInfo(String s) {
+  // the only character is the speed (positive)
+  if (s.length() == 1) {
+    return s.toInt();
+  }
+  // otherwise, the number is negative
+  else {
+    return -1 * s.toInt();
+  }
+}
+
 // update the state variables for speed change, fire, and sensitivity
 void updateStateVars(String str) {
   int space1 = str.indexOf(" ");
   int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
-  String stateVars = str.substring(space2 + 1, str.indexOf(etx));
+  int space3 = (str.substring(space2 + 1, str.indexOf(etx))).indexOf(" ");
 
-  speedInfo = int(stateVars.charAt(0));
-  fireInfo = int(stateVars.charAt(1));
-  sensitivityMode = int(stateVars.charAt(2));
+  String s = str.substring(space2 + 1, space3);
+  speedInfo = stringToSpeedInfo(s);
+
+  String stateVars = str.substring(space3 + 1, str.indexOf(etx));
+  fireInfo = int(stateVars.charAt(0));
+  sensitivityMode = int(stateVars.charAt(1));
 }
 
 // safely read and process a character from BT
@@ -231,11 +247,11 @@ bool isValidChar(char ch) {
 }
 
 // pulses the relay to change speed
-void changeSpeed() {
+void changeSpeed(int pin, int numClicks) {
   for (int i = 0; i < numClicks; i++) {
-    digitalWrite(speedPin, LOW);
+    digitalWrite(pin, LOW);
     delay(50);
-    digitalWrite(speedPin, HIGH);
+    digitalWrite(pin, HIGH);
     delay(50);
   }
 }
@@ -289,9 +305,11 @@ void setup() {
   pinMode(autoload_RPWM, OUTPUT);
   pinMode(autoload_LPWM, OUTPUT);
 
-  // establish the relay for speed change and make sure its off
-  pinMode(speedPin, OUTPUT);
-  digitalWrite(speedPin, HIGH);
+  // establish the relay for speed changes and make sure both are initially off
+  pinMode(speedUp, OUTPUT);
+  pinMode(speedDown, OUTPUT);
+  digitalWrite(speedUp, HIGH);
+  digitalWrite(speedDown, HIGH);
 
   // zero the servo and attach it to the Arduino
   myServo.write(servoZero);
@@ -331,8 +349,8 @@ void loop() {
     updateStateVars(data);
 
     // move the servo and linear actuator
-    moveServo(theta_angle);
-    moveAct(phi_angle);
+    // moveServo(theta_angle);
+    // moveAct(phi_angle);
 
     // check if enough time has passed since firing
     if ((millis() - lastFireTime) > fireCooldown) {
@@ -340,10 +358,29 @@ void loop() {
         // fire and update the last fire time
         driveAutoloader();
         lastFireTime = millis();
-      }
-      else if (speedInfo) {
-        // change the speed
-        changeSpeed();
+      } else if (speedInfo != 0) {
+        // attempt to change the speed by the designated amount
+        currSpeed += 10 * speedInfo;
+
+        // loop around if max speed is surpassed
+        if (currSpeed > 100) {
+          // the new current speed
+          currSpeed = 10;
+
+          // speed down 9 clicks to get back to 10
+          changeSpeed(speedDown, 9);
+        }
+        // otherwise, change the speed by the designated amount
+        else {
+          // positive speed change
+          if (speedInfo > 0) {
+            changeSpeed(speedUp, speedInfo);
+          }
+          // negative speed change
+          else {
+            changeSpeed(speedDown, abs(speedInfo));
+          }
+        }
       }
     }
 
@@ -359,4 +396,7 @@ void loop() {
     // Serial.println("Theta: " + String(theta_angle));
     // Serial.println("Phi: " + String(phi_angle));
   }
+
+  // char c = BTSerial.read();
+  // Serial.println(c);
 }

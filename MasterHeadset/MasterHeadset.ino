@@ -213,7 +213,8 @@ void updateAngles() {
 
 // generates a string of data describing the state of the switches
 String generateSwitchData() {
-  return String(speedInfo) + String(fireInfo) + String(sensitivityMode);
+  // speed info is separated by a space to allow for both positive and negative numbers
+  return String(speedInfo) + " " + String(fireInfo) + String(sensitivityMode);
 }
 
 // sends information over BT
@@ -336,8 +337,12 @@ void loop() {
 
       // speed control
       if (val <= 10) {
-        int diff = val * 10 - currSpeed;
+        // how much to increase or decrease the speed (times 10)
+        speedInfo = ((val * 10) - currSpeed) / 10;
+
+        // update the current speed
         currSpeed = val * 10;
+
         if (DFPlayerActive) {
           myDFPlayer.playMp3Folder(val);
         }
@@ -389,7 +394,7 @@ void loop() {
     // speed control
     currSpeed += 10;
 
-    // we want to change the speed
+    // we want to increase the speed by 10
     speedInfo = 1;
 
     // loop around if max speed is reached
