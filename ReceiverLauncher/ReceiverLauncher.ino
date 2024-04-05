@@ -167,6 +167,9 @@ void moveServo(float theta) {
 
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
+    Serial.print("Moving: ");
+    Serial.println(servoSpeed);
+
     if (theta > 0) {
       myServo.write(prevServoPos - servoSpeed);
     } else if (theta < 0) {
@@ -312,7 +315,7 @@ void setup() {
   digitalWrite(speedDown, HIGH);
 
   // zero the servo and attach it to the Arduino
-  myServo.write(servoZero);
+  // myServo.write(servoZero); // TODO
 
   // TODO: check for min and max position data
   myServo.attach(servoPin);
@@ -349,14 +352,14 @@ void loop() {
     updateStateVars(data);
 
     // move the servo and linear actuator
-    // moveServo(theta_angle);
-    // moveAct(phi_angle);
+    moveServo(theta_angle);
+    moveAct(phi_angle);
 
     // check if enough time has passed since firing
     if ((millis() - lastFireTime) > fireCooldown) {
       if (fireInfo) {
         // fire and update the last fire time
-        driveAutoloader();
+        // driveAutoloader(); // TODO
         lastFireTime = millis();
       } else if (speedInfo != 0) {
         // attempt to change the speed by the designated amount
@@ -384,15 +387,15 @@ void loop() {
       }
     }
 
-    // print what is received from BT
-    for (int i = 0; i < data.length(); i++) {
-      Serial.print(data.charAt(i));
-    }
+    // // print what is received from BT
+    // for (int i = 0; i < data.length(); i++) {
+    //   Serial.print(data.charAt(i));
+    // }
 
     // reset the data string
     data = "";
 
-    Serial.println("");
+    // Serial.println("");
     // Serial.println("Theta: " + String(theta_angle));
     // Serial.println("Phi: " + String(phi_angle));
   }
