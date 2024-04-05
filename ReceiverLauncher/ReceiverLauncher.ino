@@ -157,7 +157,7 @@ void moveServo(float theta) {
   }
 
   // the difference between theta and the activation angle for a given sensitivity
-  float diff = abs(theta) - sensitivity[sensitivityMode];
+  float diff = abs(theta) - sensitivity[sensitivityMode]; // TODO
 
   // determine the servo speed based on theta
   float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 15.0);
@@ -167,9 +167,6 @@ void moveServo(float theta) {
 
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
-    Serial.print("Moving: ");
-    Serial.println(servoSpeed);
-
     if (theta > 0) {
       myServo.write(prevServoPos - servoSpeed);
     } else if (theta < 0) {
@@ -352,8 +349,8 @@ void loop() {
     updateStateVars(data);
 
     // move the servo and linear actuator
-    moveServo(theta_angle);
-    moveAct(phi_angle);
+    // moveServo(theta_angle);
+    // moveAct(phi_angle);
 
     // check if enough time has passed since firing
     if ((millis() - lastFireTime) > fireCooldown) {
@@ -387,15 +384,15 @@ void loop() {
       }
     }
 
-    // // print what is received from BT
-    // for (int i = 0; i < data.length(); i++) {
-    //   Serial.print(data.charAt(i));
-    // }
+    // print what is received from BT
+    for (int i = 0; i < data.length(); i++) {
+      Serial.print(data.charAt(i));
+    }
 
     // reset the data string
     data = "";
 
-    // Serial.println("");
+    Serial.println("");
     // Serial.println("Theta: " + String(theta_angle));
     // Serial.println("Phi: " + String(phi_angle));
   }
