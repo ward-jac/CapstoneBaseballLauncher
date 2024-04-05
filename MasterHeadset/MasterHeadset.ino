@@ -213,8 +213,8 @@ void updateAngles() {
 
 // generates a string of data describing the state of the switches
 String generateSwitchData() {
-  // speed info is separated by a space to allow for both positive and negative numbers
-  return String(speedInfo) + " " + String(fireInfo) + String(sensitivityMode);
+  // separated by spaces to allow for both positive and negative numbers
+  return String(speedInfo) + " " + String(fireInfo) + " " + String(sensitivityMode);
 }
 
 // sends information over BT
@@ -298,10 +298,9 @@ void loop() {
       myDFPlayer.playMp3Folder(13);
       startUp = false;
     }
+
     // update theta and phi
-    else {
-      updateAngles();
-    }
+    updateAngles();
   }
 
   // speech recognition

@@ -33,7 +33,7 @@ int maxAngle = 30;
 // for the servo motor
 Servo myServo;
 int servoPin = 5;
-int servoZero = 90;
+int servoZero = 93;
 int prevServoPos = servoZero;
 float servoSpeed;  // the scaled rotation speed of the servo (value from 0-1)
 float servoPos;    // the set position that the servo is being moved to
@@ -160,7 +160,7 @@ void moveServo(float theta) {
   float diff = abs(theta) - sensitivity[sensitivityMode]; // TODO
 
   // determine the servo speed based on theta
-  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 15.0);
+  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 5.0);
 
   // before moving, obtain the last written position of the servo
   prevServoPos = myServo.read();
@@ -168,9 +168,9 @@ void moveServo(float theta) {
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
     if (theta > 0) {
-      myServo.write(prevServoPos - servoSpeed);
-    } else if (theta < 0) {
       myServo.write(prevServoPos + servoSpeed);
+    } else if (theta < 0) {
+      myServo.write(prevServoPos - servoSpeed);
     }
   }
 }
@@ -183,7 +183,7 @@ float dataToTheta(String str) {
 // obtain the second number in the string (phi)
 float dataToPhi(String str) {
   int space1 = str.indexOf(" ");
-  int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
+  int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ") + space1 + 1;
   return str.substring(space1 + 1, space2).toFloat();
 }
 
@@ -202,15 +202,12 @@ int stringToSpeedInfo(String s) {
 // update the state variables for speed change, fire, and sensitivity
 void updateStateVars(String str) {
   int space1 = str.indexOf(" ");
-  int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ");
-  int space3 = (str.substring(space2 + 1, str.indexOf(etx))).indexOf(" ");
+  int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ") + space1 + 1;
+  int space3 = (str.substring(space2 + 1, str.indexOf(etx))).indexOf(" ") + space2 + 1;
+  int space4 = (str.substring(space3 + 1, str.indexOf(etx))).indexOf(" ") + space3 + 1;
 
-  String s = str.substring(space2 + 1, space3);
-  speedInfo = stringToSpeedInfo(s);
-
-  String stateVars = str.substring(space3 + 1, str.indexOf(etx));
-  fireInfo = int(stateVars.charAt(0));
-  sensitivityMode = int(stateVars.charAt(1));
+  fireInfo = str.substring(space3 + 1, space4).toInt();
+  sensitivityMode = str.substring(space4 + 1, str.indexOf(etx)).toInt();
 }
 
 // safely read and process a character from BT
@@ -312,7 +309,7 @@ void setup() {
   digitalWrite(speedDown, HIGH);
 
   // zero the servo and attach it to the Arduino
-  // myServo.write(servoZero); // TODO
+  myServo.write(servoZero); // TODO
 
   // TODO: check for min and max position data
   myServo.attach(servoPin);
@@ -349,8 +346,8 @@ void loop() {
     updateStateVars(data);
 
     // move the servo and linear actuator
-    // moveServo(theta_angle);
-    // moveAct(phi_angle);
+    moveServo(theta_angle);
+    moveAct(phi_angle);
 
     // check if enough time has passed since firing
     if ((millis() - lastFireTime) > fireCooldown) {
@@ -384,15 +381,19 @@ void loop() {
       }
     }
 
-    // print what is received from BT
-    for (int i = 0; i < data.length(); i++) {
-      Serial.print(data.charAt(i));
-    }
+    // // print what is received from BT
+    // for (int i = 0; i < data.length(); i++) {
+    //   Serial.print(data.charAt(i));
+    // }
 
     // reset the data string
     data = "";
 
     Serial.println("");
+    Serial.println(theta_angle);
+    Serial.println(phi_angle);
+    Serial.println("");
+
     // Serial.println("Theta: " + String(theta_angle));
     // Serial.println("Phi: " + String(phi_angle));
   }
