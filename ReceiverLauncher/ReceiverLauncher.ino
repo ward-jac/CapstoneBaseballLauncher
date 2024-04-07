@@ -33,10 +33,14 @@ int maxAngle = 30;
 // for the servo motor
 Servo myServo;
 int servoPin = 5;
-int servoZero = 93;
-int prevServoPos = servoZero;
-float servoSpeed;  // the scaled rotation speed of the servo (value from 0-1)
-float servoPos;    // the set position that the servo is being moved to
+int servoZeroDeg = 83;                                                         // zeroed position of the servo, in degrees
+int servoLowBoundDeg = servoZeroDeg - 30;                                      // minimum position of the servo, in degrees
+int servoMinMicro = 553;                                                       // minimum position of the servo, in microseconds
+int servoHighBoundDeg = servoZeroDeg + 30;                                     // maximum position of the servo, in degrees
+int servoMaxMicro = 2400;                                                      // maximum position of the servo, in microseconds
+int prevServoMicro = map(servoZeroDeg, 0, 180, servoMinMicro, servoMaxMicro);  // the previous servo position, in microseconds
+float servoSpeed;                                                              // the scaled rotation speed of the servo
+float servoPos;                                                                // the set position that the servo is being moved to
 
 // for the proximity sensor
 int proximity = 0;
@@ -47,15 +51,15 @@ int autoload_RPWM = 10;
 int autoload_LPWM = 9;
 
 // pins for linear actuator
-int act_pin = A0;   // linear actuator potentiometer pin
-int act_RPWM = 45;  // linear actutator RPWM connection
-int act_LPWM = 46;  // linear actuator LWPM connection
+int act_pin = A0;  // linear actuator potentiometer pin
+int act_RPWM = 3;  // linear actutator RPWM connection
+int act_LPWM = 4;  // linear actuator LWPM connection
 
 // state variables for linear actuator
 int actReading = 0;          // the value read by the linear actuator potentiometer
 float actSpeed;              // speed of the linear actuator (value from 0-255)
-int maxAnalogReading = 926;  // max value that linear actuator is allowed to move to
-int minAnalogReading = 39;   // min value that linear actuator is allowed to move to
+int maxAnalogReading = 940;  // max value that linear actuator is allowed to move to
+int minAnalogReading = 45;   // min value that linear actuator is allowed to move to
 
 // to keep track of the current firing mode
 // 0 = fine
@@ -83,8 +87,14 @@ long fireCooldown = 5000;
 long lastFireTime = 0;
 
 // returns whether or not a given linear actuator movement is valid
-bool validMovement(int dir, int pot) {
+bool validActMove(int dir, int pot) {
   return (dir == 0) || ((dir == 1) && (pot < maxAnalogReading)) || ((dir == -1) && (pot > minAnalogReading));
+}
+
+// returns whether or not a given servo movement is valid
+bool validServoMove(int dir, int servoPosMicro) {
+  return (dir == 0) || ((dir == 1) && (servoPosMicro < map(servoHighBoundDeg, 0, 180, servoMinMicro, servoMaxMicro)))
+         || ((dir == -1) && (servoPosMicro > map(servoLowBoundDeg, 0, 180, servoMinMicro, servoMaxMicro)));
 }
 
 // maps input to output positions
@@ -98,7 +108,7 @@ void driveActuator(int dir, float Speed) {
   actReading = analogRead(act_pin);
 
   // confirm that the actuator can move in the specified direction
-  if (!validMovement(dir, actReading)) {
+  if (!validActMove(dir, actReading)) {
     return;
   }
 
@@ -157,20 +167,28 @@ void moveServo(float theta) {
   }
 
   // the difference between theta and the activation angle for a given sensitivity
-  float diff = abs(theta) - sensitivity[sensitivityMode]; // TODO
+  float diff = abs(theta) - sensitivity[sensitivityMode];
 
   // determine the servo speed based on theta
-  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 0.0, 2.0);
+  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 10.0, 25.0);
 
   // before moving, obtain the last written position of the servo
-  prevServoPos = myServo.read();
+  prevServoMicro = map(myServo.read(), 0, 180, servoMinMicro, servoMaxMicro);
 
   // rotates the servo if theta surpasses the minimum angle
   if (diff > 0) {
     if (theta > 0) {
-      myServo.write(prevServoPos + servoSpeed);
+      // confirm that the servo can rotate right
+      if (!validServoMove(1, prevServoMicro)) {
+        return;
+      }
+      myServo.writeMicroseconds(prevServoMicro + servoSpeed);
     } else if (theta < 0) {
-      myServo.write(prevServoPos - servoSpeed);
+      // confirm that the servo can rotate left
+      if (!validServoMove(-1, prevServoMicro)) {
+        return;
+      }
+      myServo.writeMicroseconds(prevServoMicro - servoSpeed);
     }
   }
 }
@@ -309,9 +327,7 @@ void setup() {
   digitalWrite(speedDown, HIGH);
 
   // zero the servo and attach it to the Arduino
-  // myServo.write(servoZero);
-
-  // TODO: check for min and max position data
+  myServo.writeMicroseconds(map(servoZeroDeg, 0, 180, servoMinMicro, servoMaxMicro));
   myServo.attach(servoPin);
 
   // 1 second delay
@@ -353,7 +369,7 @@ void loop() {
     if ((millis() - lastFireTime) > fireCooldown) {
       if (fireInfo) {
         // fire and update the last fire time
-        driveAutoloader(); // TODO
+        driveAutoloader();  // TODO
         lastFireTime = millis();
       } else if (speedInfo != 0) {
         // attempt to change the speed by the designated amount

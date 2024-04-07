@@ -425,10 +425,6 @@ void loop() {
   else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
     updateShifts();
     myDFPlayer.playMp3Folder(13);
-
-    // reset the blue switch after holding
-    // resetSwitch(&blueSwitch);
-    Serial.println("IMU calibrated.");
   }
 
   // set theta and phi to 0 if the launcher is locked or if we are calibrating the IMU
