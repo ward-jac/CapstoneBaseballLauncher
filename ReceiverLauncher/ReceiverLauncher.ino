@@ -261,14 +261,19 @@ bool isValidChar(char ch) {
   return isValid;
 }
 
-// pulses the relay to change speed
-void changeSpeed(int pin, int numClicks) {
-  for (int i = 0; i < numClicks; i++) {
-    digitalWrite(pin, LOW);
-    delay(50);
-    digitalWrite(pin, HIGH);
-    delay(50);
+
+// holds relay to increment speed speed
+void changeSpeed(int speedInc) {
+  int s;
+  if (speedInc>0) {
+    s = speedUp;
   }
+  else {
+    s = speedDown;
+  }
+  digitalWrite(s, LOW);
+  delay(abs(speedInc)*200);
+  digitalWrite(s, HIGH);
 }
 
 // loads a ball into the system, the DC motor will turn until the proximity sensor senses a ball
@@ -293,6 +298,36 @@ void driveAutoloader() {
 
   // TODO: make this longer?
   delay(1000);
+}
+
+// start up procedure to unlock launcher with access code 1919
+void startUpProcedure() {
+  delay(2000);
+  Serial.println("Power on");
+  digitalWrite(power, LOW);
+  delay(2000);
+  digitalWrite(power, HIGH);
+  delay(200);
+
+  for(int i=0; i<=1; i++) {
+    Serial.println("1");
+    digitalWrite(speedUp, LOW);
+    delay(200);
+    digitalWrite(speedUp, HIGH);
+    delay(200);
+
+    Serial.println("9");
+    digitalWrite(speedDown, LOW);
+    delay(200);
+    digitalWrite(speedDown, HIGH);
+    delay(200);
+
+    Serial.println("Enter");
+    digitalWrite(enter, LOW);
+    delay(200);
+    digitalWrite(enter, HIGH);
+    delay(200);
+  }
 }
 
 void setup() {
@@ -330,8 +365,10 @@ void setup() {
   myServo.writeMicroseconds(map(servoZeroDeg, 0, 180, servoMinMicro, servoMaxMicro));
   myServo.attach(servoPin);
 
-  // 1 second delay
+  // for powering on
   delay(1000);
+  startUpProcedure();
+  delay(2000);
 }
 
 void loop() {
@@ -372,28 +409,7 @@ void loop() {
         driveAutoloader();  // TODO
         lastFireTime = millis();
       } else if (speedInfo != 0) {
-        // attempt to change the speed by the designated amount
-        currSpeed += 10 * speedInfo;
-
-        // loop around if max speed is surpassed
-        if (currSpeed > 100) {
-          // the new current speed
-          currSpeed = 10;
-
-          // speed down 9 clicks to get back to 10
-          changeSpeed(speedDown, 9);
-        }
-        // otherwise, change the speed by the designated amount
-        else {
-          // positive speed change
-          if (speedInfo > 0) {
-            changeSpeed(speedUp, speedInfo);
-          }
-          // negative speed change
-          else {
-            changeSpeed(speedDown, abs(speedInfo));
-          }
-        }
+        changeSpeed(speedInfo*10);
       }
     }
 

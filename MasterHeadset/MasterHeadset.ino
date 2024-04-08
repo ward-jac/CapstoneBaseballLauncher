@@ -336,7 +336,7 @@ void loop() {
 
       // speed control
       if (val <= 10) {
-        // how much to increase or decrease the speed (times 10)
+        // how much to increase or decrease the speed (1->10, 2->20, ..., 10->100)
         speedInfo = ((val * 10) - currSpeed) / 10;
 
         // update the current speed
@@ -393,14 +393,14 @@ void loop() {
     // speed control
     currSpeed += 10;
 
-    // we want to increase the speed by 10
-    speedInfo = 1;
-
     // loop around if max speed is reached
     if (currSpeed > 100) {
+      speedInfo = -9;
       currSpeed = 10;
     }
-    
+    else {
+      speedInfo = 1;
+    }
     // play the appropriate speed audio file
     myDFPlayer.playMp3Folder(currSpeed / 10);
   }
