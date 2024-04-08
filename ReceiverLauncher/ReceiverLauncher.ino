@@ -1,5 +1,5 @@
 // for BT communication
-#define BTSerial Serial3
+#define BTSerial Serial1
 
 // required for servo operation
 #include <Servo.h>
@@ -39,8 +39,8 @@ int servoMinMicro = 553;                                                       /
 int servoHighBoundDeg = servoZeroDeg + 30;                                     // maximum position of the servo, in degrees
 int servoMaxMicro = 2400;                                                      // maximum position of the servo, in microseconds
 int prevServoMicro = map(servoZeroDeg, 0, 180, servoMinMicro, servoMaxMicro);  // the previous servo position, in microseconds
-float servoSpeed;                                                              // the scaled rotation speed of the servo
-float servoPos;                                                                // the set position that the servo is being moved to
+int servoSpeed;                                                                // the scaled rotation speed of the servo
+int servoPos;                                                                  // the set position that the servo is being moved to
 
 // for the proximity sensor
 int proximity = 0;
@@ -170,7 +170,8 @@ void moveServo(float theta) {
   float diff = abs(theta) - sensitivity[sensitivityMode];
 
   // determine the servo speed based on theta
-  float servoSpeed = mapFloat(abs(theta), 0.0, maxAngle, 10.0, 25.0);
+  // servoSpeed = map(diff, 0.0, (maxAngle - sensitivity[sensitivityMode]), 6.0, 10.0);
+  servoSpeed = 8;
 
   // before moving, obtain the last written position of the servo
   prevServoMicro = map(myServo.read(), 0, 180, servoMinMicro, servoMaxMicro);
@@ -190,6 +191,8 @@ void moveServo(float theta) {
       }
       myServo.writeMicroseconds(prevServoMicro - servoSpeed);
     }
+  } else {
+    myServo.writeMicroseconds(prevServoMicro);
   }
 }
 
