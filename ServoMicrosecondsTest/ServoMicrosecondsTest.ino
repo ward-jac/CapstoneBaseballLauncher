@@ -10,7 +10,7 @@ void setup() {
   Serial.begin(9600);
 
   // write the initial position to the servo and attach it to the Arduino
-  myServo.writeMicroseconds(1500);
+  myServo.writeMicroseconds(600);
   myServo.attach(servoPin);
 
   // 1 second delay
@@ -21,7 +21,7 @@ void loop() {
   // // minimum position reached at 553 microseconds
   // for (int i = 600; i > 0; i--) {
   //   myServo.writeMicroseconds(i);
-  //   delay(1000);
+  //   delay(100);
   //   Serial.println(myServo.read());
   //   Serial.println(i);
   //   Serial.println("");
