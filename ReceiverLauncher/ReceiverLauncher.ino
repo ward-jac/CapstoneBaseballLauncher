@@ -32,7 +32,7 @@ int maxAngle = 30;
 
 // for the servo motor
 Servo myServo;
-int servoPin = 5;
+int servoPin = 31;
 int servoZeroDeg = 83;                                                         // zeroed position of the servo, in degrees
 int servoLowBoundDeg = servoZeroDeg - 30;                                      // minimum position of the servo, in degrees
 int servoMinMicro = 553;                                                       // minimum position of the servo, in microseconds
@@ -74,8 +74,10 @@ int speedInfo;
 int fireInfo;
 
 // to change the launcher speed with a relay
-int speedUp = 6;    // TODO
-int speedDown = 7;  // TODO
+const int power = 8;
+const int speedUp = 7;
+const int speedDown = 6;
+const int enter = 5;
 
 // the current speed of the launcher (speed 40 on startup)
 int currSpeed = 40;
@@ -358,10 +360,14 @@ void setup() {
   pinMode(autoload_LPWM, OUTPUT);
 
   // establish the relay for speed changes and make sure both are initially off
+  pinMode(power, OUTPUT);
   pinMode(speedUp, OUTPUT);
   pinMode(speedDown, OUTPUT);
+  pinMode(enter, OUTPUT);
+  digitalWrite(power, HIGH);
   digitalWrite(speedUp, HIGH);
   digitalWrite(speedDown, HIGH);
+  digitalWrite(enter, HIGH);
 
   // zero the servo and attach it to the Arduino
   myServo.writeMicroseconds(map(servoZeroDeg, 0, 180, servoMinMicro, servoMaxMicro));
