@@ -265,17 +265,16 @@ bool isValidChar(char ch) {
 }
 
 
-// holds relay to increment speed speed
+// holds relay to increment speed
 void changeSpeed(int speedInc) {
   int s;
-  if (speedInc>0) {
+  if (speedInc > 0) {
     s = speedUp;
-  }
-  else {
+  } else {
     s = speedDown;
   }
   digitalWrite(s, LOW);
-  delay(abs(speedInc)*200);
+  delay(abs(speedInc) * 200);
   digitalWrite(s, HIGH);
 }
 
@@ -312,7 +311,7 @@ void startUpProcedure() {
   digitalWrite(power, HIGH);
   delay(200);
 
-  for(int i=0; i<=1; i++) {
+  for (int i = 0; i <= 1; i++) {
     Serial.println("1");
     digitalWrite(speedUp, LOW);
     delay(200);
@@ -412,7 +411,7 @@ void loop() {
         driveAutoloader();  // TODO
         lastFireTime = millis();
       } else if (speedInfo != 0) {
-        changeSpeed(speedInfo*10);
+        changeSpeed(speedInfo * 10);
       }
     }
 
