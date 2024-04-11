@@ -1,0 +1,27 @@
+DateTime: 04/12/2024 01:57:00
+License: Formal
+Language: English(US)
+Board type: Arduino Nano RP2040
+Serial number: 0123AA2153A41E9AEED4D4DA51CFCC
+
+Trigger:
+	100	Launcher
+
+Command:
+	10001	Ten
+	10002	Twenty
+	10004	Fourty
+	10005	Fifty
+	10006	Sixty
+	10007	Seventy
+	10008	Eighty
+	10009	Ninety
+	10010	Hundred
+	10011	Calibrate
+	10012	Fire
+	10013	Lock
+	10016	Cancel
+	10014	On
+	10015	Off
+	10003	Thirty
+

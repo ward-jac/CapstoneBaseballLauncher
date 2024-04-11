@@ -289,6 +289,7 @@ void driveAutoloader() {
   while (!sensed) {
     // read the proximity sensor
     proximity = vcnl.readProximity();
+    Serial.println(proximity);
 
     // check if a ball has been sensed
     if (proximity > 4000) {
@@ -298,10 +299,11 @@ void driveAutoloader() {
     // drive the autoloader
     analogWrite(autoload_LPWM, 0);
     analogWrite(autoload_RPWM, 1023);
+    delay(100);
   }
 
-  // TODO: make this longer?
-  delay(1000);
+  analogWrite(autoload_LPWM, 0);
+  analogWrite(autoload_RPWM, 0);
 }
 
 // start up procedure to unlock launcher with access code 1919
@@ -413,8 +415,7 @@ void loop() {
     // check if enough time has passed since firing
     if ((millis() - lastFireTime) > fireCooldown) {
       if (fireInfo) {
-        // fire and update the last fire time
-        driveAutoloader();  // TODO
+        driveAutoloader();
         lastFireTime = millis();
       } else if (speedInfo != 0) {
         changeSpeed(speedInfo * 10);

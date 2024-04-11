@@ -81,21 +81,17 @@
 #include <LED_Control.h>
 
 // The DSpotter License Data.
-#include "CybLicense_1711659420.h"
+#include "CybLicense_1712858220.h"
 #define DSPOTTER_LICENSE g_lpdwLicense
 
 // For NANO_RP2040_CONNECT
 #if defined(TARGET_NANO_RP2040_CONNECT)
-#include "Model_1711659420.h"             // The packed level one model file.
+#include "Model_1712858220.h"             // The packed level one model file.
 #endif
 #define DSPOTTER_MODEL g_lpdwModel
 
 // The VR engine object. Only can exist one, otherwise not worked.
 static DSpotterSDKHL g_oDSpotterSDKHL;
-
-// IMU
-#include <Arduino_LSM6DS3.h>
-float Gx, Gy, Gz;
 
 // Callback function for VR engine
 void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
@@ -116,12 +112,9 @@ void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
       10011	Calibrate
       10012	Fire
       10013	Lock
-      10014	Unlock
-      10015	Cancel
-      10016	Mode One
-      10017	Mode Two
-      10018	Sense High
-      10019	Sense Low
+      10014	On
+      10015	Off
+      10016 Cancel
       */
       LED_RGB_Red();
       if(nID!=100) {
@@ -129,6 +122,8 @@ void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
         String msg = String(num) + "\n";
         //Serial.println(msg);
         Serial1.print(msg);
+        Serial.print(msg);
+        delay(1000);
       }
   }
 
@@ -160,9 +155,8 @@ void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
 void setup()
 {
   LED_Init_All();
-
+  Serial.begin(9600);
   Serial1.begin(9600);
-  IMU.begin();
 
   // Init VR engine & Audio
   if (g_oDSpotterSDKHL.Init(DSPOTTER_LICENSE, sizeof(DSPOTTER_LICENSE), DSPOTTER_MODEL, VRCallback) != DSpotterSDKHL::Success)
@@ -174,18 +168,5 @@ void loop()
   // Do VR
   g_oDSpotterSDKHL.DoVR();
 
-  /*
-  if (IMU.gyroscopeAvailable()) {
-    delay(500);
-    IMU.readGyroscope(Gx, Gy, Gz);
-    
-    Serial1.print(Gx);
-    Serial1.print(" ");
-    Serial1.print(Gy);
-    Serial1.print(" ");
-    Serial1.print(Gz);
-    Serial1.print(" \n");
-  }
-  */
 }
 

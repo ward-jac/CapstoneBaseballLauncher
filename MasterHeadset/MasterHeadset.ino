@@ -318,12 +318,19 @@ void loop() {
     10011	Calibrate
     10012	Fire
     10013	Lock
-    10014	Unlock
-    10015	Cancel
-    10016	Mode One
-    10017	Mode Two
-    10018	Sense High
-    10019	Sense Low
+    10014	On
+    10015	Off
+    10016 Cancel
+  */
+
+  /*
+   (val): Control name
+  (1-10): Speed control - sets speed to val*10 speed
+      11: Lock Launcher
+      12: Unlock Launcher
+      13: Sensor Calibrated
+      14: Face Forward to Calibrate
+      15: Fire
   */
   while (SpeechSerial.available() > 0) {
     char c = SpeechSerial.read();
@@ -351,21 +358,30 @@ void loop() {
           case 11:
             updateShifts();
             myDFPlayer.playMp3Folder(13);
+            break;
 
-          // fire the launcher
-          case 12:
-            fireInfo = 1;
-            myDFPlayer.playMp3Folder(15);
-
-          // lock the launcher
+          // Lock/unlock the launcher
           case 13:
-            locked = true;
-            myDFPlayer.playMp3Folder(11);
+            locked = !locked;
+            if(locked) {
+              myDFPlayer.playMp3Folder(11);
+            }
+            else {
+              myDFPlayer.playMp3Folder(12);
+            }
+            break;
 
-          // unlock the launcher
+          // turn on launcher --- TODO
           case 14:
-            locked = false;
-            myDFPlayer.playMp3Folder(12);
+            //locked = false;
+            //myDFPlayer.playMp3Folder(12);
+            break;
+
+          // turn off launcher --- TODO
+          case 15:
+            //locked = false;
+            //myDFPlayer.playMp3Folder(12);
+            break;
         }
       }
     }
@@ -392,6 +408,7 @@ void loop() {
   else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
     // speed control
     currSpeed += 10;
+    Serial.println("Increasing speed by 10");
 
     // loop around if max speed is reached
     if (currSpeed > 100) {
@@ -406,12 +423,14 @@ void loop() {
   }
   // if only the red switch is held, fire the launcher
   else if (validHold(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+    Serial.println("Firing");
     // fire the launcher
     fireInfo = 1;
     myDFPlayer.playMp3Folder(15);
   }
   // if only the blue switch is clicked, toggle lock
   else if (validClick(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
+    Serial.println("Locking");
     locked = !locked;
 
     // play the appropriate audio file
@@ -423,6 +442,7 @@ void loop() {
   }
   // if only the blue switch is held, calibrate the IMU
   else if (validHold(&blueSwitch) && digitalRead(redSwitch.pin) == HIGH) {
+    Serial.println("Calibrated");
     updateShifts();
     myDFPlayer.playMp3Folder(13);
   }
