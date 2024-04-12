@@ -58,14 +58,6 @@ float phi = 0.0;
 // the max values of theta and phi
 int maxAngle = 30;
 
-// to keep track of the current sensitivity
-// 0 = fine
-// 1 = coarse
-int sensitivityMode = 1;
-
-// the minimum angle needed to activate
-int sensitivity[] = { 7, 15 };
-
 // the microlight switches
 struct microlight_t redSwitch = { false, 8, 0, 0 };
 struct microlight_t blueSwitch = { false, 9, 0, 0 };
@@ -83,6 +75,7 @@ bool locked = true;
 // to keep track of the switch info to send to the launcher
 int speedInfo;
 int fireInfo;
+int powerInfo;
 
 // updates the structs when a microlight switch is clicked
 void switchClicked(microlight_t* microlight) {
@@ -214,7 +207,7 @@ void updateAngles() {
 // generates a string of data describing the state of the switches
 String generateSwitchData() {
   // separated by spaces to allow for both positive and negative numbers
-  return String(speedInfo) + " " + String(fireInfo) + " " + String(sensitivityMode);
+  return String(speedInfo) + " " + String(fireInfo) + " " + String(powerInfo);
 }
 
 // sends information over BT
@@ -303,6 +296,11 @@ void loop() {
     updateAngles();
   }
 
+  // assume that we don't want to change speed, fire, or toggle power
+  fireInfo = 0;
+  powerInfo = 0;
+  speedInfo = 0;
+
   // speech recognition
   /*
     10001	Ten
@@ -337,7 +335,10 @@ void loop() {
     speechMsg += c;
     if (c == '\n') {
       speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
-      Serial.println(speechMsg);
+
+      // Serial.println(speechMsg);
+      // Serial.println("");
+
       int val = speechMsg.toInt();
       speechMsg = "";
 
@@ -363,10 +364,9 @@ void loop() {
           // Lock/unlock the launcher
           case 13:
             locked = !locked;
-            if(locked) {
+            if (locked) {
               myDFPlayer.playMp3Folder(11);
-            }
-            else {
+            } else {
               myDFPlayer.playMp3Folder(12);
             }
             break;
@@ -387,21 +387,22 @@ void loop() {
     }
   }
 
-  // assume that we don't want to change speed or fire
-  speedInfo = 0;
-  fireInfo = 0;
-
   // check for click/hold/release for change speed or fire
   readSwitches();
 
-  // if both switches are held, change the sensitivity
-  if (validHold(&redSwitch) && validHold(&blueSwitch)) {
-    if (sensitivityMode) {
-      sensitivityMode = 0;
-      // audio file?
+  // Serial.println(redSwitch.elapsedTime);
+  // Serial.println(blueSwitch.elapsedTime);
+  // Serial.println("");
+
+  // if both switches are pressed, toggle power
+  if (validHold(&redSwitch) && validHold(&blueSwitch) == HIGH) { 
+    Serial.println("Toggling power");
+    if (powerInfo) {
+      powerInfo = 0;
+      // TODO audio file?
     } else {
-      sensitivityMode = 1;
-      // audio file?
+      powerInfo = 1;
+      // TODO audio file?
     }
   }
   // if only the red switch is clicked, change the speed
@@ -414,8 +415,7 @@ void loop() {
     if (currSpeed > 100) {
       speedInfo = -9;
       currSpeed = 10;
-    }
-    else {
+    } else {
       speedInfo = 1;
     }
     // play the appropriate speed audio file
@@ -458,9 +458,15 @@ void loop() {
     phi = getShiftedPhi(phi);
   }
 
-  Serial.println(theta);
-  Serial.println(phi);
-  Serial.println("");
+  // Serial.println("Theta: " + String(theta));
+  // Serial.println("Phi: " + String(phi));
+  // Serial.println("");
+
+  // Serial.print("Current speed: ");
+  // Serial.println(currSpeed);
+  // Serial.print("Speed info: ");
+  // Serial.println(speedInfo);
+  // Serial.println("");
 
   // send the angles over BT
   sendInfo();

@@ -33,7 +33,7 @@ int maxAngle = 30;
 // for the servo motor
 Servo myServo;
 int servoPin = 31;
-int servoZeroDeg = 83;                                                         // zeroed position of the servo, in degrees
+int servoZeroDeg = 90;                                                         // zeroed position of the servo, in degrees
 int servoLowBoundDeg = servoZeroDeg - 30;                                      // minimum position of the servo, in degrees
 int servoMinMicro = 553;                                                       // minimum position of the servo, in microseconds
 int servoHighBoundDeg = servoZeroDeg + 30;                                     // maximum position of the servo, in degrees
@@ -61,26 +61,19 @@ float actSpeed;              // speed of the linear actuator (value from 0-255)
 int maxAnalogReading = 940;  // max value that linear actuator is allowed to move to
 int minAnalogReading = 45;   // min value that linear actuator is allowed to move to
 
-// to keep track of the current firing mode
-// 0 = fine
-// 1 = coarse
-int sensitivityMode = 1;
-
 // the minimum angle needed to activate
-int sensitivity[] = { 7, 15 };
+int sensitivity = 15;
 
 // to keep track of the switch info to send to the launcher
 int speedInfo;
 int fireInfo;
+int powerInfo;
 
 // to change the launcher speed with a relay
 const int power = 8;
 const int speedUp = 7;
 const int speedDown = 6;
 const int enter = 5;
-
-// the current speed of the launcher (speed 40 on startup)
-int currSpeed = 40;
 
 // the minimum time between each fire
 long fireCooldown = 5000;
@@ -142,11 +135,11 @@ void moveAct(float phi) {
     phi = sgn(phi) * maxAngle;
   }
 
-  // the difference between phi and the activation angle for a given sensitivity
-  float diff = abs(phi) - sensitivity[sensitivityMode];
+  // the difference between phi and the activation angle for the given sensitivity
+  float diff = abs(phi) - sensitivity;
 
   // determine the actuator speed based on phi
-  float actSpeed = mapFloat(abs(phi), 0.0, maxAngle, 0.0, 255.0);
+  float actSpeed = mapFloat(abs(phi), 0.0, maxAngle, 0.0, 175.0);
 
   // extends the linear actuator if phi surpasses the minimum angle
   if (diff > 0) {
@@ -169,11 +162,10 @@ void moveServo(float theta) {
   }
 
   // the difference between theta and the activation angle for a given sensitivity
-  float diff = abs(theta) - sensitivity[sensitivityMode];
+  float diff = abs(theta) - sensitivity;
 
   // determine the servo speed based on theta
-  // servoSpeed = map(diff, 0.0, (maxAngle - sensitivity[sensitivityMode]), 6.0, 10.0);
-  servoSpeed = 8;
+  servoSpeed = map(diff, 0.0, (maxAngle - sensitivity), 0.0, 20.0);
 
   // before moving, obtain the last written position of the servo
   prevServoMicro = map(myServo.read(), 0, 180, servoMinMicro, servoMaxMicro);
@@ -222,15 +214,16 @@ int stringToSpeedInfo(String s) {
   }
 }
 
-// update the state variables for speed change, fire, and sensitivity
+// update the state variables for speed change, fire, and power
 void updateStateVars(String str) {
   int space1 = str.indexOf(" ");
   int space2 = (str.substring(space1 + 1, str.indexOf(etx))).indexOf(" ") + space1 + 1;
   int space3 = (str.substring(space2 + 1, str.indexOf(etx))).indexOf(" ") + space2 + 1;
   int space4 = (str.substring(space3 + 1, str.indexOf(etx))).indexOf(" ") + space3 + 1;
 
+  speedInfo = str.substring(space2 + 1, space3).toInt();
   fireInfo = str.substring(space3 + 1, space4).toInt();
-  sensitivityMode = str.substring(space4 + 1, str.indexOf(etx)).toInt();
+  powerInfo = str.substring(space4 + 1, str.indexOf(etx)).toInt();
 }
 
 // safely read and process a character from BT
@@ -276,7 +269,7 @@ void changeSpeed(int speedInc) {
     s = speedDown;
   }
   digitalWrite(s, LOW);
-  delay(abs(speedInc) * 200);
+  delay(abs(speedInc) * 208);
   digitalWrite(s, HIGH);
 }
 
@@ -285,11 +278,13 @@ void driveAutoloader() {
   // no ball is present initially
   bool sensed = false;
 
-  // run the DC motor until a ball has been sensed
-  while (!sensed) {
+  // start time of autoloader
+  long start = millis();
+
+  // run the DC motor until a ball has been sensed for a max of 5 seconds
+  while ((!sensed) && (millis() - start <= 5000)) {
     // read the proximity sensor
     proximity = vcnl.readProximity();
-    Serial.println(proximity);
 
     // check if a ball has been sensed
     if (proximity > 4000) {
@@ -308,8 +303,7 @@ void driveAutoloader() {
 
 // start up procedure to unlock launcher with access code 1919
 void startUpProcedure() {
-  delay(2000);
-  Serial.println("Power on");
+  delay(1000);
   digitalWrite(power, LOW);
   delay(2000);
   digitalWrite(power, HIGH);
@@ -405,38 +399,42 @@ void loop() {
     theta_angle = dataToTheta(data);
     phi_angle = dataToPhi(data);
 
-    // update the state variables for speed change, fire, and sensitivity
+    // update the state variables for speed change, fire, and power
     updateStateVars(data);
 
     // move the servo and linear actuator
     moveServo(theta_angle);
     moveAct(phi_angle);
 
-    // check if enough time has passed since firing
+    // fire if we can
     if ((millis() - lastFireTime) > fireCooldown) {
       if (fireInfo) {
         driveAutoloader();
         lastFireTime = millis();
-      } else if (speedInfo != 0) {
-        changeSpeed(speedInfo * 10);
       }
     }
 
-    // // print what is received from BT
-    // for (int i = 0; i < data.length(); i++) {
-    //   Serial.print(data.charAt(i));
-    // }
+    // change speed if necessary
+    if (speedInfo != 0) {
+      changeSpeed(speedInfo * 10);
+    }
+
+    // toggle power if necessary
+    if (powerInfo) {
+      startUpProcedure();
+    }
+
+    // print what is received from BT
+    for (int i = 0; i < data.length(); i++) {
+      // Serial.print(data.charAt(i));
+    }
 
     // reset the data string
     data = "";
 
-    Serial.println("");
-    Serial.println(theta_angle);
-    Serial.println(phi_angle);
-    Serial.println("");
-
     // Serial.println("Theta: " + String(theta_angle));
     // Serial.println("Phi: " + String(phi_angle));
+    // Serial.println("");
   }
 
   // char c = BTSerial.read();
