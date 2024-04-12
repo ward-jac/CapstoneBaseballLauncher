@@ -15,6 +15,7 @@ int currSpeed = 40;
 
 // speech recognition
 String speechMsg = "";
+bool speechRecogOn = true;
 
 // required for IMU calculations
 #include <Adafruit_BNO08x.h>
@@ -253,15 +254,7 @@ void setup() {
     pinMode(switchPointers[i]->pin, INPUT_PULLUP);
   }
 
-  /*
-   (val): Control name
-  (1-10): Speed control - sets speed to val*10 speed
-      11: Lock Launcher
-      12: Unlock Launcher
-      13: Sensor Calibrated
-      14: Face Forward to Calibrate
-      15: Fire
-  */
+  // audio module setup
   DFSerial.begin(9600);
   if (!myDFPlayer.begin(DFSerial, /*isACK = */ true, /*doReset = */ true)) {  // Use serial to communicate with mp3.
     Serial.println("No Connection to DFPlayer");
@@ -280,6 +273,7 @@ void setup() {
 }
 
 void loop() {
+  Serial.println(currSpeed);
   // zero the IMU or get readings
   if (bno08x.getSensorEvent(&sensorValue)) {
     // read the IMU
@@ -287,6 +281,8 @@ void loop() {
 
     // zero the IMU at the very beginning of the program
     if (startUp) {
+      myDFPlayer.playMp3Folder(16);
+      delay(1500);
       updateShifts();
       myDFPlayer.playMp3Folder(13);
       startUp = false;
@@ -301,8 +297,7 @@ void loop() {
   powerInfo = 0;
   speedInfo = 0;
 
-  // speech recognition
-  /*
+  /* ----- Speech Commands
     10001	Ten
     10002	Twenty
     10003	Thirty
@@ -321,7 +316,7 @@ void loop() {
     10016 Cancel
   */
 
-  /*
+  /* -------- AUDIO MP3s
    (val): Control name
   (1-10): Speed control - sets speed to val*10 speed
       11: Lock Launcher
@@ -329,59 +324,66 @@ void loop() {
       13: Sensor Calibrated
       14: Face Forward to Calibrate
       15: Fire
+      16: Power on
+      17: Power off
+      18: Release to fire
+      19: Speech recognition on
+      20: Speech recognition off
   */
   while (SpeechSerial.available() > 0) {
-    char c = SpeechSerial.read();
-    speechMsg += c;
-    if (c == '\n') {
-      speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
+    // do not read if speech serial is turned off
+    if (!speechRecogOn) {
+      SpeechSerial.read();
+    } 
+    // do read speech serial
+    else {
+      char c = SpeechSerial.read();
+      speechMsg += c;
+      if (c == '\n') {
+        speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
+        int val = speechMsg.toInt();
+        speechMsg = "";
 
-      // Serial.println(speechMsg);
-      // Serial.println("");
+        // speed control
+        if (val <= 10) {
+          // how much to increase or decrease the speed (1->10, 2->20, ..., 10->100)
+          speedInfo = ((val * 10) - currSpeed) / 10;
 
-      int val = speechMsg.toInt();
-      speechMsg = "";
-
-      // speed control
-      if (val <= 10) {
-        // how much to increase or decrease the speed (1->10, 2->20, ..., 10->100)
-        speedInfo = ((val * 10) - currSpeed) / 10;
-
-        // update the current speed
-        currSpeed = val * 10;
-
-        if (DFPlayerActive) {
+          // update the current speed
+          currSpeed = val * 10;
           myDFPlayer.playMp3Folder(val);
-        }
-      } else {
-        switch (val) {
-          // calibrate the IMU
-          case 11:
-            updateShifts();
-            myDFPlayer.playMp3Folder(13);
-            break;
+        } else {
+          switch (val) {
+            // calibrate the IMU
+            case 11:
+              updateShifts();
+              myDFPlayer.playMp3Folder(13);
+              break;
 
-          // Lock/unlock the launcher
-          case 13:
-            locked = !locked;
-            if (locked) {
-              myDFPlayer.playMp3Folder(11);
-            } else {
-              myDFPlayer.playMp3Folder(12);
-            }
-            break;
+            // Lock/unlock the launcher
+            case 13:
+              locked = !locked;
+              if (locked) {
+                myDFPlayer.playMp3Folder(11);
+              } else {
+                myDFPlayer.playMp3Folder(12);
+              }
+              break;
 
-          // turn on launcher --- TODO
-          case 14:
-            //locked = false;
-            //myDFPlayer.playMp3Folder(12);
-            break;
+            // turn on launcher
+            case 14:
+              Serial.println("Power on");
+              powerInfo = 1;
+              myDFPlayer.playMp3Folder(16);
+              break;
 
-          // turn off launcher --- TODO
-          case 15:
-            //locked = false;
-            //myDFPlayer.playMp3Folder(12);
-            break;
+            // turn off launcher
+            case 15:
+              Serial.println("Power off");
+              powerInfo = 1;
+              myDFPlayer.playMp3Folder(17);
+              break;
+          }
         }
       }
     }
@@ -390,21 +392,19 @@ void loop() {
   // check for click/hold/release for change speed or fire
   readSwitches();
 
-  // Serial.println(redSwitch.elapsedTime);
-  // Serial.println(blueSwitch.elapsedTime);
-  // Serial.println("");
-
-  // if both switches are pressed, toggle power
-  if (validHold(&redSwitch) && validHold(&blueSwitch) == HIGH) { 
-    Serial.println("Toggling power");
-    if (powerInfo) {
-      powerInfo = 0;
-      // TODO audio file?
-    } else {
-      powerInfo = 1;
-      // TODO audio file?
+  // if both switches are held, for release order red, then blue
+  if (validHold(&redSwitch) && validHold(&blueSwitch) == HIGH){ 
+    speechRecogOn = !speechRecogOn;
+    if (speechRecogOn) {
+      myDFPlayer.playMp3Folder(19);
     }
+    else {
+      myDFPlayer.playMp3Folder(20);
+    }
+    
+    Serial.println("Toggling power");
   }
+
   // if only the red switch is clicked, change the speed
   else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
     // speed control
@@ -457,16 +457,6 @@ void loop() {
     theta = getShiftedTheta(theta);
     phi = getShiftedPhi(phi);
   }
-
-  // Serial.println("Theta: " + String(theta));
-  // Serial.println("Phi: " + String(phi));
-  // Serial.println("");
-
-  // Serial.print("Current speed: ");
-  // Serial.println(currSpeed);
-  // Serial.print("Speed info: ");
-  // Serial.println(speedInfo);
-  // Serial.println("");
 
   // send the angles over BT
   sendInfo();

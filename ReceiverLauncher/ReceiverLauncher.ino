@@ -68,6 +68,7 @@ int sensitivity = 15;
 int speedInfo;
 int fireInfo;
 int powerInfo;
+boolean powerOn = false;
 
 // to change the launcher speed with a relay
 const int power = 8;
@@ -262,19 +263,24 @@ bool isValidChar(char ch) {
 
 // holds relay to increment speed
 void changeSpeed(int speedInc) {
+  Serial.println(speedInc);
   int s;
   if (speedInc > 0) {
     s = speedUp;
   } else {
     s = speedDown;
   }
-  digitalWrite(s, LOW);
-  delay(abs(speedInc) * 208);
-  digitalWrite(s, HIGH);
+  for(int i=0; i<abs(speedInc)/10; i++) {
+    digitalWrite(s, LOW);
+    delay(2000);
+    digitalWrite(s, HIGH);
+    delay(50);
+  }
 }
 
 // loads a ball into the system, the DC motor will turn until the proximity sensor senses a ball
 void driveAutoloader() {
+  /*
   // no ball is present initially
   bool sensed = false;
 
@@ -285,6 +291,7 @@ void driveAutoloader() {
   while ((!sensed) && (millis() - start <= 5000)) {
     // read the proximity sensor
     proximity = vcnl.readProximity();
+    Serial.println(proximity);
 
     // check if a ball has been sensed
     if (proximity > 4000) {
@@ -296,33 +303,42 @@ void driveAutoloader() {
     analogWrite(autoload_RPWM, 1023);
     delay(100);
   }
+  analogWrite(autoload_LPWM, 0);
+  analogWrite(autoload_RPWM, 0);
+  */
 
+  analogWrite(autoload_LPWM, 0);
+  analogWrite(autoload_RPWM, 1023);
+  delay(2000);
   analogWrite(autoload_LPWM, 0);
   analogWrite(autoload_RPWM, 0);
 }
 
-// start up procedure to unlock launcher with access code 1919
-void startUpProcedure() {
+void togglePower() {
   delay(1000);
   digitalWrite(power, LOW);
   delay(2000);
   digitalWrite(power, HIGH);
   delay(200);
 
+  powerOn = !powerOn;
+}
+
+// start up procedure to unlock launcher with access code 1919
+void startUpProcedure() {
+  togglePower();
+
   for (int i = 0; i <= 1; i++) {
-    Serial.println("1");
     digitalWrite(speedUp, LOW);
     delay(200);
     digitalWrite(speedUp, HIGH);
     delay(200);
 
-    Serial.println("9");
     digitalWrite(speedDown, LOW);
     delay(200);
     digitalWrite(speedDown, HIGH);
     delay(200);
 
-    Serial.println("Enter");
     digitalWrite(enter, LOW);
     delay(200);
     digitalWrite(enter, HIGH);
@@ -372,7 +388,7 @@ void setup() {
   // for powering on
   delay(1000);
   startUpProcedure();
-  delay(2000);
+  delay(1000);
 }
 
 void loop() {
@@ -421,22 +437,14 @@ void loop() {
 
     // toggle power if necessary
     if (powerInfo) {
-      startUpProcedure();
+      if (powerOn) {
+        togglePower();
+      }
+      else {
+        startUpProcedure();
+      }
     }
 
-    // print what is received from BT
-    for (int i = 0; i < data.length(); i++) {
-      // Serial.print(data.charAt(i));
-    }
-
-    // reset the data string
     data = "";
-
-    // Serial.println("Theta: " + String(theta_angle));
-    // Serial.println("Phi: " + String(phi_angle));
-    // Serial.println("");
   }
-
-  // char c = BTSerial.read();
-  // Serial.println(c);
 }
