@@ -68,7 +68,7 @@ struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 int holdTime = 1000;
 
 // the min hold time to fire
-int fireHoldTime = 4000;
+int fireHoldTime = 2500;
 
 // to only send one message after each is reached
 bool hold1Message = false;
@@ -336,7 +336,8 @@ void loop() {
       19: Speech recognition on
       20: Speech recognition off
   */
-  while (SpeechSerial.available() > 0) {
+
+  /*while (SpeechSerial.available() > 0) {
     // do not read if speech serial is turned off
     if (!speechRecogOn) {
       SpeechSerial.read();
@@ -393,7 +394,7 @@ void loop() {
         }
       }
     }
-  }
+  }*/
 
   // check for click/hold/release
   readSwitches();

@@ -62,7 +62,7 @@ int maxAnalogReading = 940;  // max value that linear actuator is allowed to mov
 int minAnalogReading = 45;   // min value that linear actuator is allowed to move to
 
 // the minimum angle needed to activate
-int sensitivity = 15;
+int sensitivity = 7;
 
 // to keep track of the switch info to send to the launcher
 int speedInfo;
@@ -166,7 +166,7 @@ void moveServo(float theta) {
   float diff = abs(theta) - sensitivity;
 
   // determine the servo speed based on theta
-  servoSpeed = map(diff, 0.0, (maxAngle - sensitivity), 0.0, 20.0);
+  servoSpeed = map(diff, 0.0, (maxAngle - sensitivity), 0.0, 10.0);
 
   // before moving, obtain the last written position of the servo
   prevServoMicro = map(myServo.read(), 0, 180, servoMinMicro, servoMaxMicro);
