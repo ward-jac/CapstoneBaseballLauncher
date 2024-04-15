@@ -123,7 +123,7 @@ void VRCallback(int nFlag, int nID, int nScore, int nSG, int nEnergy)
         //Serial.println(msg);
         Serial1.print(msg);
         Serial.print(msg);
-        delay(1000);
+        delay(1500);
       }
   }
 

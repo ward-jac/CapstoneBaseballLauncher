@@ -64,11 +64,9 @@ struct microlight_t redSwitch = { false, 8, 0, 0 };
 struct microlight_t blueSwitch = { false, 9, 0, 0 };
 struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
-// the min hold time for a typical switch hold
-int holdTime = 1000;
-
-// the min hold time to fire
-int fireHoldTime = 2500;
+// hold times:
+const int holdTime = 1000;
+const int fireHoldTime = 2500;
 
 // to only send one message after each is reached
 bool hold1Message = false;
@@ -240,6 +238,101 @@ void sendInfo() {
   }
 }
 
+void performSpeechRec() {
+  /* ----- Speech Commands
+    10001	Ten
+    10002	Twenty
+    10003	Thirty
+    10004	Forty
+    10005	Fifty
+    10006	Sixty
+    10007	Seventy
+    10008	Eighty
+    10009	Ninety
+    10010	Hundred
+    10011	Calibrate
+    10012	Fire
+    10013	Lock
+    10014	On
+    10015	Off
+    10016 Cancel
+  */
+
+  /* -------- AUDIO MP3s
+   (val): Control name
+  (1-10): Speed control - sets speed to val*10 speed
+      11: Lock Launcher
+      12: Unlock Launcher
+      13: Sensor Calibrated
+      14: Face Forward to Calibrate
+      15: Fire
+      16: Power on
+      17: Power off
+      18: Release to fire
+      19: Speech recognition on
+      20: Speech recognition off
+  */
+
+  while (SpeechSerial.available() > 0) {
+    // do not read if speech serial is turned off
+    if (!speechRecogOn) {
+      SpeechSerial.read();
+    }
+    // do read speech serial
+    else {
+      char c = SpeechSerial.read();
+      speechMsg += c;
+      if (c == '\n') {
+        speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
+        int val = speechMsg.toInt();
+        speechMsg = "";
+
+        // speed control
+        if (val <= 10) {
+          // how much to increase or decrease the speed (1->10, 2->20, ..., 10->100)
+          speedInfo = ((val * 10) - currSpeed) / 10;
+
+          // update the current speed
+          currSpeed = val * 10;
+          myDFPlayer.playMp3Folder(val);
+        } else {
+          switch (val) {
+            // calibrate the IMU
+            case 11:
+              updateShifts();
+              myDFPlayer.playMp3Folder(13);
+              break;
+
+            // Lock/unlock the launcher
+            case 13:
+              locked = !locked;
+              if (locked) {
+                myDFPlayer.playMp3Folder(11);
+              } else {
+                myDFPlayer.playMp3Folder(12);
+              }
+              break;
+
+            // turn on launcher
+            case 14:
+              Serial.println("Power on");
+              powerInfo = 1;
+              myDFPlayer.playMp3Folder(16);
+              break;
+
+            // turn off launcher
+            case 15:
+              Serial.println("Power off");
+              powerInfo = 1;
+              myDFPlayer.playMp3Folder(17);
+              break;
+          }
+        }
+      }
+    }
+  }
+}
+
 void setup() {
   // begin Serial communication
   Serial.begin(9600);
@@ -303,100 +396,7 @@ void loop() {
   powerInfo = 0;
   speedInfo = 0;
 
-  /* ----- Speech Commands
-    10001	Ten
-    10002	Twenty
-    10003	Thirty
-    10004	Forty
-    10005	Fifty
-    10006	Sixty
-    10007	Seventy
-    10008	Eighty
-    10009	Ninety
-    10010	Hundred
-    10011	Calibrate
-    10012	Fire
-    10013	Lock
-    10014	On
-    10015	Off
-    10016 Cancel
-  */
-
-  /* -------- AUDIO MP3s
-   (val): Control name
-  (1-10): Speed control - sets speed to val*10 speed
-      11: Lock Launcher
-      12: Unlock Launcher
-      13: Sensor Calibrated
-      14: Face Forward to Calibrate
-      15: Fire
-      16: Power on
-      17: Power off
-      18: Release to fire
-      19: Speech recognition on
-      20: Speech recognition off
-  */
-
-  /*while (SpeechSerial.available() > 0) {
-    // do not read if speech serial is turned off
-    if (!speechRecogOn) {
-      SpeechSerial.read();
-    }
-    // do read speech serial
-    else {
-      char c = SpeechSerial.read();
-      speechMsg += c;
-      if (c == '\n') {
-        speechMsg = speechMsg.substring(0, speechMsg.length() - 1);
-        int val = speechMsg.toInt();
-        speechMsg = "";
-
-        // speed control
-        if (val <= 10) {
-          // how much to increase or decrease the speed (1->10, 2->20, ..., 10->100)
-          speedInfo = ((val * 10) - currSpeed) / 10;
-
-          // update the current speed
-          currSpeed = val * 10;
-          myDFPlayer.playMp3Folder(val);
-        } else {
-          switch (val) {
-            // calibrate the IMU
-            case 11:
-              updateShifts();
-              myDFPlayer.playMp3Folder(13);
-              break;
-
-            // Lock/unlock the launcher
-            case 13:
-              locked = !locked;
-              if (locked) {
-                myDFPlayer.playMp3Folder(11);
-              } else {
-                myDFPlayer.playMp3Folder(12);
-              }
-              break;
-
-            // turn on launcher
-            case 14:
-              Serial.println("Power on");
-              powerInfo = 1;
-              myDFPlayer.playMp3Folder(16);
-              break;
-
-            // turn off launcher
-            case 15:
-              Serial.println("Power off");
-              powerInfo = 1;
-              myDFPlayer.playMp3Folder(17);
-              break;
-          }
-        }
-      }
-    }
-  }*/
-
-  // check for click/hold/release
+  performSpeechRec();
   readSwitches();
 
   // if both switches are held, toggle speech recognition
