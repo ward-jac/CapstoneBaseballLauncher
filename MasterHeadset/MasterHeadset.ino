@@ -266,6 +266,9 @@ void performSpeechRec() {
       18: Release to fire
       19: Speech recognition on
       20: Speech recognition off
+      21: Speed up
+      22: Speed down
+      99: Easter egg
   */
 
   while (SpeechSerial.available() > 0) {
