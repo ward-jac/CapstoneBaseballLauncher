@@ -45,6 +45,7 @@ struct microlight_t {
   int pin;
   long clickedTime;
   long elapsedTime;
+  int holdsReached;
 };
 
 // the curent angles at the time of calibration
@@ -60,12 +61,15 @@ float phi = 0.0;
 int maxAngle = 30;
 
 // the microlight switches
-struct microlight_t redSwitch = { false, 8, 0, 0 };
-struct microlight_t blueSwitch = { false, 9, 0, 0 };
+struct microlight_t redSwitch = { false, 8, 0, 0, 0 };
+struct microlight_t blueSwitch = { false, 9, 0, 0, 0 };
 struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
-// hold time
-const int holdTime = 2000;
+// hold time for microlight switches
+const int holdTime = 4000;
+
+// hold time for Sicko Mode
+const int sickoModeTime = 10000;
 
 // the max time to register a clicked switch
 int clickTime = 500;
@@ -100,6 +104,7 @@ void resetSwitch(microlight_t* microlight) {
   microlight->prevClicked = false;
   microlight->clickedTime = 0;
   microlight->elapsedTime = 0;
+  microlight->holdsReached = 0;
 }
 
 // returns if a switch was successfully clicked and released
@@ -108,8 +113,13 @@ bool validClick(microlight_t* microlight) {
 }
 
 // returns if a switch was successfully held and released
-bool validHold(microlight_t* microlight, long time) {
+bool validHoldAndRelease(microlight_t* microlight, long time) {
   return (!microlight->prevClicked && (microlight->elapsedTime > time));
+}
+
+// returns if a switch was successfully held past a given time
+bool validHold(microlight_t* microlight, long time) {
+  return (microlight->elapsedTime > time);
 }
 
 // reads and updates the current state of each microlight switch
@@ -401,15 +411,48 @@ void loop() {
   performSpeechRec();
   readSwitches();
 
+  // to play audio messages to indicate when to release the buttons
+  if (validHold(&redSwitch, sickoModeTime) && redSwitch.holdsReached == 2) {
+    redSwitch.holdsReached++;
+    myDFPlayer.playMp3Folder(99);
+    Serial.println("Release to play Sicko Mode.");
+  } 
+  else if (validHold(&redSwitch, holdTime) && redSwitch.holdsReached == 1) {
+    redSwitch.holdsReached++;
+    myDFPlayer.playMp3Folder(18);
+    Serial.println("Release to fire launcher.");
+  } 
+  else if (validHold(&redSwitch, clickTime) && redSwitch.holdsReached == 0) {
+    redSwitch.holdsReached++;
+    myDFPlayer.playMp3Folder(22);
+    Serial.println("Release to decrease the speed.");
+  } 
+  else if (validHold(&blueSwitch, holdTime) && blueSwitch.holdsReached == 1) {
+    blueSwitch.holdsReached++;
+    if (speechRecogOn) {
+      myDFPlayer.playMp3Folder(19);
+    } 
+    else {
+      myDFPlayer.playMp3Folder(20);
+    }
+    Serial.println("Release to toggle speech recognition.");
+  } 
+  else if (validHold(&blueSwitch, clickTime) && blueSwitch.holdsReached == 0) {
+    blueSwitch.holdsReached++;
+    myDFPlayer.playMp3Folder(14);
+    Serial.println("Release to calibrate the IMU.");
+  }
+
+
   // if only the red switch is held past the hold time, fire the launcher upon release
-  if (validHold(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
+  if (validHoldAndRelease(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
     Serial.println("Firing");
     // fire the launcher
     fireInfo = 1;
     myDFPlayer.playMp3Folder(15);
   }
   // if only the red switch is held past the click time, decrease the speed by 10
-  else if (validHold(&redSwitch, clickTime) && digitalRead(blueSwitch.pin) == HIGH) {
+  else if (validHoldAndRelease(&redSwitch, clickTime) && digitalRead(blueSwitch.pin) == HIGH) {
     // decrease the speed by 5 if we can
     if (currSpeed > 5) {
       currSpeed -= 5;
@@ -441,7 +484,7 @@ void loop() {
     }
   }
   // if only the blue switch is held past the hold time, toggle speech recognition
-  else if (validHold(&blueSwitch, holdTime) && digitalRead(redSwitch.pin) == HIGH) {
+  else if (validHoldAndRelease(&blueSwitch, holdTime) && digitalRead(redSwitch.pin) == HIGH) {
     Serial.println("Toggling speech recognition");
     speechRecogOn = !speechRecogOn;
     if (speechRecogOn) {
@@ -451,7 +494,7 @@ void loop() {
     }
   }
   // if only the blue switch is held past the click time, calibrate the IMU upon release
-  else if (validHold(&blueSwitch, clickTime) && digitalRead(redSwitch.pin) == HIGH) {
+  else if (validHoldAndRelease(&blueSwitch, clickTime) && digitalRead(redSwitch.pin) == HIGH) {
     Serial.println("Calibrated");
     updateShifts();
     myDFPlayer.playMp3Folder(13);
