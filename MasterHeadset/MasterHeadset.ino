@@ -64,13 +64,8 @@ struct microlight_t redSwitch = { false, 8, 0, 0 };
 struct microlight_t blueSwitch = { false, 9, 0, 0 };
 struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
-// hold times:
-const int holdTime = 1000;
-const int fireHoldTime = 2500;
-
-// to only send one message after each is reached
-bool hold1Message = false;
-bool hold2Message = false;
+// hold time
+const int holdTime = 2000;
 
 // the max time to register a clicked switch
 int clickTime = 500;
@@ -289,8 +284,8 @@ void performSpeechRec() {
 
         // speed control
         if (val <= 10) {
-          // how much to increase or decrease the speed (1->10, 2->20, ..., 10->100)
-          speedInfo = ((val * 10) - currSpeed) / 10;
+          // how much to increase or decrease the speed (1->5, 2->10, ..., 10->50)
+          speedInfo = ((val * 10) - currSpeed) / 5;
 
           // update the current speed
           currSpeed = val * 10;
@@ -317,6 +312,8 @@ void performSpeechRec() {
             case 14:
               Serial.println("Power on");
               powerInfo = 1;
+              // reset the current speed
+              currSpeed = 40;
               myDFPlayer.playMp3Folder(16);
               break;
 
@@ -324,6 +321,8 @@ void performSpeechRec() {
             case 15:
               Serial.println("Power off");
               powerInfo = 1;
+              // reset the current speed
+              currSpeed = 40;
               myDFPlayer.playMp3Folder(17);
               break;
           }
@@ -399,8 +398,47 @@ void loop() {
   performSpeechRec();
   readSwitches();
 
-  // if both switches are held, toggle speech recognition
-  if (validHold(&redSwitch, holdTime) && validHold(&blueSwitch, holdTime)) {
+  // if only the red switch is held past the hold time, fire the launcher upon release
+  if (validHold(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
+    Serial.println("Firing");
+    // fire the launcher
+    fireInfo = 1;
+    myDFPlayer.playMp3Folder(15);
+  }
+  // if only the red switch is held past the click time, decrease the speed by 10
+  else if (validHold(&redSwitch, clickTime) && digitalRead(blueSwitch.pin) == HIGH) {
+    // decrease the speed by 5 if we can
+    if (currSpeed > 5) {
+      currSpeed -= 5;
+      speedInfo = -1;
+      // play the appropriate speed audio file
+      if (currSpeed % 10 == 0) {
+        // Serial.println("Decreasing speed by 5");
+        myDFPlayer.playMp3Folder(currSpeed / 10);
+      }
+    } else {
+      // Serial.println("Can't decrease speed.");
+      // TODO play the appropriate speed audio file
+    }
+  }
+  // if only the red switch is clicked, increase the speed by 10
+  else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
+    // increase the speed by 5 if we can
+    if (currSpeed <= 95) {
+      currSpeed += 5;
+      speedInfo = 1;
+      // play the appropriate speed audio file
+      if (currSpeed % 10 == 0) {
+        // Serial.println("Increasing speed by 5");
+        myDFPlayer.playMp3Folder(currSpeed / 10);
+      }
+    } else {
+      // Serial.println("Can't increase speed.");
+      // TODO play appropriate audio
+    }
+  }
+  // if only the blue switch is held past the hold time, toggle speech recognition
+  else if (validHold(&blueSwitch, holdTime) && digitalRead(redSwitch.pin) == HIGH) {
     Serial.println("Toggling speech recognition");
     speechRecogOn = !speechRecogOn;
     if (speechRecogOn) {
@@ -409,43 +447,8 @@ void loop() {
       myDFPlayer.playMp3Folder(20);
     }
   }
-  // if only the red switch is held past the fire hold time, fire the launcher upon release
-  else if (validHold(&redSwitch, fireHoldTime) && digitalRead(blueSwitch.pin) == HIGH) {
-    Serial.println("Firing");
-    // fire the launcher
-    fireInfo = 1;
-    myDFPlayer.playMp3Folder(15);
-  }
-  // if only the red switch is held past the standard hold time, decrease the speed by 10
-  else if (validHold(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
-    // decrease the speed by 10 if we can
-    if (currSpeed > 10) {
-      currSpeed -= 10;
-      speedInfo = -1;
-      // play the appropriate speed audio file
-      myDFPlayer.playMp3Folder(currSpeed / 10);
-      Serial.println("Decreasing speed by 10");
-    } else {
-      // TODO play the appropriate speed audio file
-      Serial.println("Can't decrease speed.");
-    }
-  }
-  // if only the red switch is clicked, increase the speed by 10
-  else if (validClick(&redSwitch) && digitalRead(blueSwitch.pin) == HIGH) {
-    // increase the speed by 10 if we can
-    if (currSpeed <= 90) {
-      currSpeed += 10;
-      speedInfo = 1;
-      // play the appropriate speed audio file
-      myDFPlayer.playMp3Folder(currSpeed / 10);
-      Serial.println("Increasing speed by 10");
-    } else {
-      // TODO play the appropriate speed audio file
-      Serial.println("Can't increase speed.");
-    }
-  }
-  // if only the blue switch is held, calibrate the IMU upon release
-  else if (validHold(&blueSwitch, holdTime) && digitalRead(redSwitch.pin) == HIGH) {
+  // if only the blue switch is held past the click time, calibrate the IMU upon release
+  else if (validHold(&blueSwitch, clickTime) && digitalRead(redSwitch.pin) == HIGH) {
     Serial.println("Calibrated");
     updateShifts();
     myDFPlayer.playMp3Folder(13);

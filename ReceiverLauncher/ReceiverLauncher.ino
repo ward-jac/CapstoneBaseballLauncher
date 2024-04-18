@@ -102,6 +102,7 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 void driveActuator(int dir, float Speed) {
   // update the current potentiometer reading
   actReading = analogRead(act_pin);
+  Serial.println(actReading);
 
   // confirm that the actuator can move in the specified direction
   if (!validActMove(dir, actReading)) {
@@ -263,16 +264,16 @@ bool isValidChar(char ch) {
 
 // holds relay to increment speed
 void changeSpeed(int speedInc) {
-  Serial.println(speedInc);
   int s;
   if (speedInc > 0) {
     s = speedUp;
   } else {
     s = speedDown;
   }
-  for(int i=0; i<abs(speedInc)/10; i++) {
+  for (int i = 0; i < abs(speedInc); i++) {
     digitalWrite(s, LOW);
-    delay(2000);
+    // delay 1 second for a speed increment of 5
+    delay(1000);
     digitalWrite(s, HIGH);
     delay(50);
   }
@@ -432,15 +433,14 @@ void loop() {
 
     // change speed if necessary
     if (speedInfo != 0) {
-      changeSpeed(speedInfo * 10);
+      changeSpeed(speedInfo);
     }
 
     // toggle power if necessary
     if (powerInfo) {
       if (powerOn) {
         togglePower();
-      }
-      else {
+      } else {
         startUpProcedure();
       }
     }
