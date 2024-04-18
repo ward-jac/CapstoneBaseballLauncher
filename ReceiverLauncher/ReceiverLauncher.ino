@@ -102,6 +102,7 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 void driveActuator(int dir, float Speed) {
   // update the current potentiometer reading
   actReading = analogRead(act_pin);
+  Serial.println(actReading);
 
   // confirm that the actuator can move in the specified direction
   if (!validActMove(dir, actReading)) {

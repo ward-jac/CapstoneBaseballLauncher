@@ -64,13 +64,8 @@ struct microlight_t redSwitch = { false, 8, 0, 0 };
 struct microlight_t blueSwitch = { false, 9, 0, 0 };
 struct microlight_t* switchPointers[] = { &redSwitch, &blueSwitch };
 
-// hold times:
-const int holdTime = 1000;
-const int fireHoldTime = 2500;
-
-// to only send one message after each is reached
-bool hold1Message = false;
-bool hold2Message = false;
+// hold time
+const int holdTime = 2000;
 
 // the max time to register a clicked switch
 int clickTime = 500;
@@ -403,25 +398,15 @@ void loop() {
   performSpeechRec();
   readSwitches();
 
-  // if both switches are held, toggle speech recognition
-  if (validHold(&redSwitch, holdTime) && validHold(&blueSwitch, holdTime)) {
-    Serial.println("Toggling speech recognition");
-    speechRecogOn = !speechRecogOn;
-    if (speechRecogOn) {
-      myDFPlayer.playMp3Folder(19);
-    } else {
-      myDFPlayer.playMp3Folder(20);
-    }
-  }
-  // if only the red switch is held past the fire hold time, fire the launcher upon release
-  else if (validHold(&redSwitch, fireHoldTime) && digitalRead(blueSwitch.pin) == HIGH) {
+  // if only the red switch is held past the hold time, fire the launcher upon release
+  if (validHold(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
     Serial.println("Firing");
     // fire the launcher
     fireInfo = 1;
     myDFPlayer.playMp3Folder(15);
   }
-  // if only the red switch is held past the standard hold time, decrease the speed by 10
-  else if (validHold(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
+  // if only the red switch is held past the click time, decrease the speed by 10
+  else if (validHold(&redSwitch, clickTime) && digitalRead(blueSwitch.pin) == HIGH) {
     // decrease the speed by 5 if we can
     if (currSpeed > 5) {
       currSpeed -= 5;
@@ -452,8 +437,18 @@ void loop() {
       // TODO play appropriate audio
     }
   }
-  // if only the blue switch is held, calibrate the IMU upon release
+  // if only the blue switch is held past the hold time, toggle speech recognition
   else if (validHold(&blueSwitch, holdTime) && digitalRead(redSwitch.pin) == HIGH) {
+    Serial.println("Toggling speech recognition");
+    speechRecogOn = !speechRecogOn;
+    if (speechRecogOn) {
+      myDFPlayer.playMp3Folder(19);
+    } else {
+      myDFPlayer.playMp3Folder(20);
+    }
+  }
+  // if only the blue switch is held past the click time, calibrate the IMU upon release
+  else if (validHold(&blueSwitch, clickTime) && digitalRead(redSwitch.pin) == HIGH) {
     Serial.println("Calibrated");
     updateShifts();
     myDFPlayer.playMp3Folder(13);
