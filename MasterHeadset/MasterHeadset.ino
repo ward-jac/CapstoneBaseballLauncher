@@ -114,7 +114,7 @@ bool validClick(microlight_t* microlight) {
 
 // returns if a switch was successfully held and released
 bool validHoldAndRelease(microlight_t* microlight, long time) {
-  return (!microlight->prevClicked && (microlight->elapsedTime > time));
+  return (!microlight->prevClicked && (microlight->elapsedTime > time) && (microlight->elapsedTime < sickoModeTime));
 }
 
 // returns if a switch was successfully held past a given time
