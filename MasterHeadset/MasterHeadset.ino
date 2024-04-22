@@ -443,7 +443,6 @@ void loop() {
     Serial.println("Release to calibrate the IMU.");
   }
 
-
   // if only the red switch is held past the hold time, fire the launcher upon release
   if (validHoldAndRelease(&redSwitch, holdTime) && digitalRead(blueSwitch.pin) == HIGH) {
     Serial.println("Firing");
