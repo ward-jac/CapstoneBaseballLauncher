@@ -266,18 +266,20 @@ void performSpeechRec() {
   /* -------- AUDIO MP3s
    (val): Control name
   (1-10): Speed control - sets speed to val*10 speed
-      11: Lock Launcher
-      12: Unlock Launcher
-      13: Sensor Calibrated
-      14: Face Forward to Calibrate
-      15: Fire
+      11: Launcher is locked
+      12: Launcher is unlocked
+      13: Sensors calibrated
+      14: Face forward and release to calibrate
+      15: Firing
       16: Power on
       17: Power off
       18: Release to fire
       19: Speech recognition on
       20: Speech recognition off
       21: Speed up
-      22: Speed down
+      22: Release to decrease speed
+      23: Release to turn speech recognition on
+      24: Release to turn speech recognition off
       99: Easter egg
   */
 
@@ -430,10 +432,10 @@ void loop() {
   else if (validHold(&blueSwitch, holdTime) && blueSwitch.holdsReached == 1) {
     blueSwitch.holdsReached++;
     if (speechRecogOn) {
-      myDFPlayer.playMp3Folder(19);
+      myDFPlayer.playMp3Folder(24);
     } 
     else {
-      myDFPlayer.playMp3Folder(20);
+      myDFPlayer.playMp3Folder(23);
     }
     Serial.println("Release to toggle speech recognition.");
   } 
