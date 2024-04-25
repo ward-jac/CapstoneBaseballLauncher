@@ -102,7 +102,7 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 void driveActuator(int dir, float Speed) {
   // update the current potentiometer reading
   actReading = analogRead(act_pin);
-  Serial.println(actReading);
+  //Serial.println(actReading);
 
   // confirm that the actuator can move in the specified direction
   if (!validActMove(dir, actReading)) {
@@ -281,7 +281,6 @@ void changeSpeed(int speedInc) {
 
 // loads a ball into the system, the DC motor will turn until the proximity sensor senses a ball
 void driveAutoloader() {
-  /*
   // no ball is present initially
   bool sensed = false;
 
@@ -289,7 +288,7 @@ void driveAutoloader() {
   long start = millis();
 
   // run the DC motor until a ball has been sensed for a max of 5 seconds
-  while ((!sensed) && (millis() - start <= 5000)) {
+  while ((!sensed)) { //&& (millis() - start <= 5000)) {
     // read the proximity sensor
     proximity = vcnl.readProximity();
     Serial.println(proximity);
@@ -304,13 +303,6 @@ void driveAutoloader() {
     analogWrite(autoload_RPWM, 1023);
     delay(100);
   }
-  analogWrite(autoload_LPWM, 0);
-  analogWrite(autoload_RPWM, 0);
-  */
-
-  analogWrite(autoload_LPWM, 0);
-  analogWrite(autoload_RPWM, 1023);
-  delay(2000);
   analogWrite(autoload_LPWM, 0);
   analogWrite(autoload_RPWM, 0);
 }
