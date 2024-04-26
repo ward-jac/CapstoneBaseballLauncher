@@ -59,7 +59,7 @@ int act_LPWM = 4;  // linear actuator LWPM connection
 int actReading = 0;          // the value read by the linear actuator potentiometer
 float actSpeed;              // speed of the linear actuator (value from 0-255)
 int maxAnalogReading = 940;  // max value that linear actuator is allowed to move to
-int minAnalogReading = 45;   // min value that linear actuator is allowed to move to
+int minAnalogReading = 275;  // min value that linear actuator is allowed to move to
 
 // the minimum angle needed to activate
 int sensitivity = 7;
@@ -100,10 +100,6 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 
 // moves the linear actuator in a given direction at a given speed
 void driveActuator(int dir, float Speed) {
-  // update the current potentiometer reading
-  actReading = analogRead(act_pin);
-  //Serial.println(actReading);
-
   // confirm that the actuator can move in the specified direction
   if (!validActMove(dir, actReading)) {
     return;
@@ -288,13 +284,12 @@ void driveAutoloader() {
   long start = millis();
 
   // run the DC motor until a ball has been sensed for a max of 5 seconds
-  while ((!sensed)) { //&& (millis() - start <= 5000)) {
+  while ((!sensed) && (millis() - start <= 5000)) {
     // read the proximity sensor
     proximity = vcnl.readProximity();
-    Serial.println(proximity);
 
     // check if a ball has been sensed
-    if (proximity > 4000) {
+    if (proximity > 3250) {
       sensed = true;
     }
 
@@ -410,6 +405,10 @@ void loop() {
 
     // update the state variables for speed change, fire, and power
     updateStateVars(data);
+
+    // update the current potentiometer reading
+    actReading = analogRead(act_pin);
+    // Serial.println(actReading);
 
     // move the servo and linear actuator
     moveServo(theta_angle);
