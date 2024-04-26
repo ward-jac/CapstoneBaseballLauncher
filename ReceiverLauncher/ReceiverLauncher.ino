@@ -59,7 +59,7 @@ int act_LPWM = 4;  // linear actuator LWPM connection
 int actReading = 0;          // the value read by the linear actuator potentiometer
 float actSpeed;              // speed of the linear actuator (value from 0-255)
 int maxAnalogReading = 940;  // max value that linear actuator is allowed to move to
-int minAnalogReading = 275;  // min value that linear actuator is allowed to move to
+int minAnalogReading = 45;   // min value that linear actuator is allowed to move to
 
 // the minimum angle needed to activate
 int sensitivity = 7;
